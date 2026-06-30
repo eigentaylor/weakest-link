@@ -68,6 +68,33 @@ function* neighbours(state) {
   }
 }
 
+// Single-step variant: each edge changes exactly one rank position OR flips direction
+// at the weakest position (k===2). Weaken by 1, flip at bottom, push by 1.
+function* neighboursMinimal(state) {
+  for (let k = 0; k < 3; k++) {
+    const [mid, d] = state[k];
+    const others = state.filter((_, i) => i !== k);
+    if (d === SINCERE[mid]) {
+      if (k < 2) {
+        const ns = [...others];
+        ns.splice(k + 1, 0, [mid, d]);
+        yield { newState: ns, label: `weak_${mid}`, type: 'weak' };
+      }
+      if (k === 2) {
+        const ns = [...others];
+        ns.splice(2, 0, [mid, -d]);
+        yield { newState: ns, label: `flip_${mid}`, type: 'flip' };
+      }
+    } else {
+      if (k > 0) {
+        const ns = [...others];
+        ns.splice(k - 1, 0, [mid, d]);
+        yield { newState: ns, label: `push_${mid}`, type: 'push' };
+      }
+    }
+  }
+}
+
 // Pre-enumerate all 48 states
 const allStates = [];
 for (const dirs of [[1,1,1],[1,1,-1],[1,-1,1],[1,-1,-1],[-1,1,1],[-1,1,-1],[-1,-1,1],[-1,-1,-1]]) {
@@ -135,6 +162,32 @@ for (const s of allStates) {
     }
   }
 
+  // Minimal (single-step) neighbours
+  const minimalNeighbours = [];
+  const minDevByMid = {};
+  for (const { newState, label, type } of neighboursMinimal(s)) {
+    const nk = stateKey(newState);
+    const nw = winner(newState);
+    const entry = { newState, label, type, winner: nw, key: nk };
+    minimalNeighbours.push(entry);
+    const mid = label.split('_')[1];
+    if (!minDevByMid[mid]) minDevByMid[mid] = [];
+    minDevByMid[mid].push(entry);
+  }
+
+  const minimalProfitableDeviations = [];
+  if (w !== 'A') {
+    const u0 = PREF[w];
+    for (const mid of MATCHUPS) {
+      for (const dev of (minDevByMid[mid] || [])) {
+        if (PREF[dev.winner] > u0) {
+          dev.profitable = true;
+          minimalProfitableDeviations.push(dev);
+        }
+      }
+    }
+  }
+
   stateData.set(key, {
     state: s,
     key,
@@ -145,6 +198,8 @@ for (const s of allStates) {
     devByMid,
     profitableDeviations,
     anyProfitable: profitableDeviations.length > 0,
+    minimalNeighbours,
+    minimalProfitableDeviations,
   });
 }
 

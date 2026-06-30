@@ -13,6 +13,7 @@ const PROFIT_COLOR = { A: '#34d399', B: '#fde68a' };
 // ── State ─────────────────────────────────────────────────────────────────────
 let showAllNodes = true;    // toggle: all 48 vs 32 non-A-wins (default: show all)
 let showAllEdges = true;    // toggle: show all deviation edges (default on)
+let showMinimalEdges = true; // toggle: single-step edges only
 let hoveredNode = null;
 
 // ── Data ──────────────────────────────────────────────────────────────────────
@@ -52,7 +53,8 @@ function buildData() {
   // All deviation edges (direct refs for independent tick updates)
   allLinks = [];
   for (const n of nodes) {
-    for (const nb of n.data.allNeighbours) {
+    const nbrs = showMinimalEdges ? n.data.minimalNeighbours : n.data.allNeighbours;
+    for (const nb of nbrs) {
       const target = nodeById.get(nb.key);
       if (target) allLinks.push({ source: n, target, label: nb.label, w: nb.winner });
     }
@@ -61,7 +63,8 @@ function buildData() {
   // Profitable edges (string IDs → forceLink resolves them)
   profitLinks = [];
   for (const n of nodes) {
-    for (const dev of n.data.profitableDeviations) {
+    const devs = showMinimalEdges ? n.data.minimalProfitableDeviations : n.data.profitableDeviations;
+    for (const dev of devs) {
       if (visibleKeys.has(dev.key)) {
         profitLinks.push({ source: n.id, target: dev.key, w: dev.winner });
       }
@@ -251,7 +254,9 @@ function applyHover(d) {
   const queue = [d];
   while (queue.length) {
     const curr = queue.shift();
-    const neighbours = showAllEdges ? curr.data.allNeighbours : curr.data.profitableDeviations;
+    const neighbours = showAllEdges
+      ? (showMinimalEdges ? curr.data.minimalNeighbours : curr.data.allNeighbours)
+      : (showMinimalEdges ? curr.data.minimalProfitableDeviations : curr.data.profitableDeviations);
     for (const nb of neighbours) {
       if (!reachable.has(nb.key) && nodeById.has(nb.key)) {
         reachable.add(nb.key);
@@ -300,7 +305,7 @@ function showTooltip(d) {
 
   // Group neighbours by outcome, dedup labels with counts
   const byOutcome = { A: {}, B: {}, C: {} };
-  for (const nb of d.data.allNeighbours) {
+  for (const nb of (showMinimalEdges ? d.data.minimalNeighbours : d.data.allNeighbours)) {
     const bucket = byOutcome[nb.winner];
     bucket[nb.label] = (bucket[nb.label] || 0) + 1;
   }
@@ -340,6 +345,14 @@ document.getElementById('toggle-edges-btn').addEventListener('click', function()
     allEdgeEls.attr('stroke-opacity', showAllEdges ? 0.3 : 0);
     profitEdgeEls.attr('stroke-opacity', 1);
   }
+});
+
+document.getElementById('toggle-minimal-btn').addEventListener('click', function() {
+  showMinimalEdges = !showMinimalEdges;
+  this.textContent = showMinimalEdges ? 'Multi step' : 'Single step';
+  this.classList.toggle('active', showMinimalEdges);
+  hoveredNode = null;
+  render();
 });
 
 // ── Init ──────────────────────────────────────────────────────────────────────

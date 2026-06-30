@@ -179,20 +179,23 @@ function render() {
   nodeEls.each(function(d) {
     const el = d3.select(this);
     const r = d.aWins ? 9 : 6;
+    const dash = d.data.isCycle ? '4,3' : null;
     if (d.profitable) {
       const s = r * 1.7;
       el.append('polygon')
         .attr('points', `0,${-s} ${s},0 0,${s} ${-s},0`)
         .attr('fill', COLOR[d.winner])
         .attr('stroke', '#0a0d18')
-        .attr('stroke-width', 1.5);
+        .attr('stroke-width', 1.5)
+        .attr('stroke-dasharray', dash);
     } else {
       el.append('circle')
         .attr('r', r)
         .attr('fill', COLOR[d.winner])
         .attr('fill-opacity', d.aWins ? 0.85 : 0.5)
         .attr('stroke', '#0a0d18')
-        .attr('stroke-width', 1);
+        .attr('stroke-width', 1)
+        .attr('stroke-dasharray', dash);
     }
   });
 
@@ -257,7 +260,8 @@ function applyHover(d) {
   }
 
   // Dim nodes outside the reachable set; keep hovered node at full opacity
-  nodeEls.attr('opacity', n => reachable.has(n.id) ? 1 : 0.07);
+  nodeEls.attr('opacity', n => reachable.has(n.id) ? 1 : 0.07)
+    .style('filter', n => n.id === d.id ? 'drop-shadow(0 0 7px #fff) drop-shadow(0 0 3px #fff)' : null);
   allEdgeEls.attr('stroke-opacity', 0);
   profitEdgeEls.attr('opacity', 0.04);
 
@@ -281,7 +285,7 @@ function applyHover(d) {
 
 function clearHover() {
   hoveredNode = null;
-  nodeEls.attr('opacity', 1);
+  nodeEls.attr('opacity', 1).style('filter', null);
   allEdgeEls.attr('stroke-opacity', showAllEdges ? 0.3 : 0);
   profitEdgeEls.attr('opacity', 1);
   hoverEdgeGroup.selectAll('*').remove();

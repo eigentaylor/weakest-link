@@ -245,13 +245,14 @@ function tick() {
 function applyHover(d) {
   hoveredNode = d;
 
-  // BFS through all deviation edges to find every reachable node
+  // BFS through edges appropriate to current toggle
   const nodeById = new Map(nodes.map(n => [n.id, n]));
   const reachable = new Set([d.id]);
   const queue = [d];
   while (queue.length) {
     const curr = queue.shift();
-    for (const nb of curr.data.allNeighbours) {
+    const neighbours = showAllEdges ? curr.data.allNeighbours : curr.data.profitableDeviations;
+    for (const nb of neighbours) {
       if (!reachable.has(nb.key) && nodeById.has(nb.key)) {
         reachable.add(nb.key);
         queue.push(nodeById.get(nb.key));
@@ -265,8 +266,9 @@ function applyHover(d) {
   allEdgeEls.attr('stroke-opacity', 0);
   profitEdgeEls.attr('opacity', 0.04);
 
-  // Show all edges whose both endpoints are reachable from d
-  const hoverData = allLinks.filter(l => reachable.has(l.source.id) && reachable.has(l.target.id));
+  // Use the edge set that matches the active toggle
+  const edgePool = showAllEdges ? allLinks : profitLinks;
+  const hoverData = edgePool.filter(l => reachable.has(l.source.id) && reachable.has(l.target.id));
 
   hoverEdgeEls = hoverEdgeGroup.selectAll('line')
     .data(hoverData)

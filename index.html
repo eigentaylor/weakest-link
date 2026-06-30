@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Weakest Link — Minimax Pairwise Voting</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .config-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    @media (max-width: 600px) {
+      .config-grid { grid-template-columns: 1fr; }
+    }
+    .state-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.25rem;
+    }
+    .matchup-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.25rem;
+    }
+    .drag-hint {
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-bottom: 0.75rem;
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="site-title">The Weakest Link</a>
+  <a href="index.html" class="active">Explorer</a>
+  <a href="graph.html">Deviation Graph</a>
+  <span class="spacer"></span>
+  <a href="minimax_graph_test.py" target="_blank">source.py</a>
+</nav>
+
+<div class="container">
+
+  <div class="page-header">
+    <h1>Scenario Explorer</h1>
+    <p class="subtitle">Minimax winner rule: in a cycle, the loser of the weakest matchup (rank 3, smallest margin) wins.</p>
+  </div>
+
+  <div class="config-grid">
+
+    <!-- Matchup configurator -->
+    <div class="matchup-section">
+      <div class="card-title">Matchup ranking</div>
+      <p class="drag-hint">Drag to reorder · click ⇄ to flip direction</p>
+      <div id="matchup-list" class="matchup-list"></div>
+    </div>
+
+    <!-- State panel -->
+    <div class="state-card">
+      <div class="card-title">Current outcome</div>
+      <div class="state-panel">
+        <div id="winner-display" class="winner-display a">A</div>
+        <div class="state-meta">
+          <span id="state-cycle" class="state-tag">[cycle]</span>
+          <span id="state-desc" class="state-tag"></span>
+          <span id="sincere-tag" class="sincere-tag yes">Sincere outcome</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Shortcuts -->
+  <div class="section-heading">Shortcuts — productive deviation examples</div>
+  <div id="shortcuts-container"></div>
+
+  <!-- Deviation panel -->
+  <div id="deviation-section">
+    <div class="section-heading">Available deviations from current state</div>
+    <div class="card">
+      <div id="deviation-panel"></div>
+    </div>
+    <div id="callout" class="callout">
+      <strong>No multi-step deviation ever helps</strong> — if no single-step deviation is profitable, no chain of deviations leads to a better outcome either.
+    </div>
+  </div>
+
+</div>
+
+<script type="module" src="explorer.js"></script>
+</body>
+</html>

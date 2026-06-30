@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Deviation Graph — The Weakest Link</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body { overflow: hidden; }
+    #graph-container { height: calc(100vh - 96px); }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="site-title">The Weakest Link</a>
+  <a href="index.html" id="explorer-link">Explorer</a>
+  <a href="graph.html" class="active">Deviation Graph</a>
+  <span class="spacer"></span>
+  <a href="minimax_graph_test.py" target="_blank">source.py</a>
+</nav>
+
+<div class="graph-toolbar">
+  <button id="toggle-nodes-btn" class="toolbar-btn active">Show 32 (hide A-wins)</button>
+  <button id="toggle-edges-btn" class="toolbar-btn active">Profitable edges only</button>
+  <div class="legend">
+    <span class="legend-item"><span class="legend-dot" style="background:var(--a)"></span> A wins</span>
+    <span class="legend-item"><span class="legend-dot" style="background:var(--b)"></span> B wins</span>
+    <span class="legend-item"><span class="legend-dot" style="background:var(--c)"></span> C wins</span>
+    <span style="color:var(--muted);margin-left:.5rem">◇ = profitable deviation exists</span>
+    <span style="color:var(--green)">— →A</span>
+    <span style="color:var(--yellow)">— →B</span>
+  </div>
+</div>
+
+<div id="graph-container">
+  <svg id="graph-svg"></svg>
+</div>
+
+<div id="tooltip"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<script type="module" src="graph.js"></script>
+<script>
+  // Restore explorer state in the nav link from sessionStorage
+  document.addEventListener('DOMContentLoaded', () => {
+    const saved = sessionStorage.getItem('explorerHash');
+    if (saved) {
+      document.getElementById('explorer-link').href = 'index.html#' + saved;
+    }
+  });
+</script>
+</body>
+</html>

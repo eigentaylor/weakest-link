@@ -158,22 +158,10 @@ function renderStatePanel() {
   const cycle = isCycle(state);
   const stateDesc = desc(state);
 
-  // Sincere = A wins
-  const sincere = w === 'A';
-
   document.getElementById('winner-display').textContent = w;
   document.getElementById('winner-display').className = `winner-display ${candClass(w)}`;
   document.getElementById('state-desc').textContent = stateDesc;
   document.getElementById('state-cycle').textContent = cycle ? '[cycle]' : `[CW: ${w}]`;
-
-  const sinTag = document.getElementById('sincere-tag');
-  if (sincere) {
-    sinTag.textContent = 'Sincere outcome';
-    sinTag.className = 'sincere-tag yes';
-  } else {
-    sinTag.textContent = 'Insincere outcome';
-    sinTag.className = 'sincere-tag no';
-  }
 }
 
 function renderDeviationPanel() {
@@ -182,15 +170,7 @@ function renderDeviationPanel() {
   const panel = document.getElementById('deviation-panel');
   const callout = document.getElementById('callout');
 
-  if (w === 'A') {
-    panel.innerHTML = '';
-    callout.style.display = 'none';
-    document.getElementById('deviation-section').style.display = 'none';
-    return;
-  }
-
   document.getElementById('deviation-section').style.display = '';
-  callout.style.display = '';
 
   const u0 = PREF[w];
   const data = getStateData(state);
@@ -225,9 +205,8 @@ function renderDeviationPanel() {
       }
 
       const rowClass = profitable ? 'dev-row profitable' : 'dev-row';
-      const [nm, nd] = dev.newState[0];
 
-      html += `<div class="${rowClass}">
+      html += `<div class="${rowClass}" data-state="${encodeState(dev.newState)}" style="cursor:pointer">
         <span class="dev-label">${dev.label}</span>
         <span class="dev-desc">${desc(dev.newState)}</span>
         <span class="dev-winner ${candColor(nw)}">${nw}</span>
@@ -238,11 +217,12 @@ function renderDeviationPanel() {
     html += `</div>`;
   }
 
-  if (!anyProfitable) {
+  if (w !== 'A' && !anyProfitable) {
     html += `<p class="no-dev-msg">No profitable deviation — the coalition is powerless here (common case: 26 of 32 non-A states).</p>`;
   }
 
   panel.innerHTML = html;
+  callout.style.display = (!anyProfitable && w !== 'A') ? '' : 'none';
 }
 
 function renderShortcuts() {
@@ -295,6 +275,16 @@ document.addEventListener('DOMContentLoaded', () => {
   applyHash();
   renderShortcuts();
   render();
+
+  document.getElementById('deviation-panel').addEventListener('click', e => {
+    const row = e.target.closest('[data-state]');
+    if (!row) return;
+    const parsed = hashToState('#' + row.dataset.state);
+    if (!parsed) return;
+    currentRanks = parsed.ranks;
+    currentDirs = parsed.dirs;
+    render();
+  });
 });
 
 window.addEventListener('hashchange', () => {

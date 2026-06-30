@@ -242,29 +242,39 @@ function tick() {
 function applyHover(d) {
   hoveredNode = d;
 
-  const adjKeys = new Set(d.data.allNeighbours.map(n => n.key));
+  // BFS through all deviation edges to find every reachable node
+  const nodeById = new Map(nodes.map(n => [n.id, n]));
+  const reachable = new Set([d.id]);
+  const queue = [d];
+  while (queue.length) {
+    const curr = queue.shift();
+    for (const nb of curr.data.allNeighbours) {
+      if (!reachable.has(nb.key) && nodeById.has(nb.key)) {
+        reachable.add(nb.key);
+        queue.push(nodeById.get(nb.key));
+      }
+    }
+  }
 
-  nodeEls.attr('opacity', n => (n.id === d.id || adjKeys.has(n.id)) ? 1 : 0.07);
+  // Dim nodes outside the reachable set; keep hovered node at full opacity
+  nodeEls.attr('opacity', n => reachable.has(n.id) ? 1 : 0.07);
   allEdgeEls.attr('stroke-opacity', 0);
-  // Use 'opacity' (not stroke-opacity) so it cascades to marker fill too
   profitEdgeEls.attr('opacity', 0.04);
 
-  const nodeById = new Map(nodes.map(n => [n.id, n]));
-  const hoverData = d.data.allNeighbours
-    .map(nb => ({ source: d, target: nodeById.get(nb.key), w: nb.winner, label: nb.label }))
-    .filter(l => l.target);
+  // Show all edges whose both endpoints are reachable from d
+  const hoverData = allLinks.filter(l => reachable.has(l.source.id) && reachable.has(l.target.id));
 
   hoverEdgeEls = hoverEdgeGroup.selectAll('line')
     .data(hoverData)
     .join('line')
-    // Set positions immediately — tick() may not fire if simulation has settled
+    // Set positions immediately — tick() won't fire if simulation has settled
     .attr('x1', l => l.source.x)
     .attr('y1', l => l.source.y)
     .attr('x2', l => l.target.x)
     .attr('y2', l => l.target.y)
     .attr('stroke', l => l.w === 'A' ? PROFIT_COLOR.A : l.w === 'B' ? PROFIT_COLOR.B : '#94a3b8')
-    .attr('stroke-width', 1.8)
-    .attr('stroke-opacity', 0.85)
+    .attr('stroke-width', 1.5)
+    .attr('stroke-opacity', 0.75)
     .attr('marker-end', l => `url(#arrow-hover-${l.w === 'A' ? 'A' : l.w === 'B' ? 'B' : 'C'})`)
     .attr('pointer-events', 'none');
 }

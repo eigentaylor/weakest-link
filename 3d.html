@@ -3,11 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Deviation Graph — The Weakest Link</title>
+  <title>3D Surface — The Weakest Link</title>
   <link rel="stylesheet" href="style.css">
   <style>
     body { overflow: hidden; }
     #graph-container { height: calc(100vh - 96px); }
+    #graph-container canvas { display: block; }
   </style>
 </head>
 <body>
@@ -15,8 +16,8 @@
 <nav>
   <a href="index.html" class="site-title">The Weakest Link</a>
   <a href="index.html" id="explorer-link">Explorer</a>
-  <a href="graph.html" class="active">Deviation Graph</a>
-  <a href="3d.html">3D Surface</a>
+  <a href="graph.html">Deviation Graph</a>
+  <a href="3d.html" class="active">3D Surface</a>
   <span class="spacer"></span>
   <a href="minimax_graph_test.py" target="_blank">source.py</a>
 </nav>
@@ -25,28 +26,34 @@
   <button id="toggle-nodes-btn" class="toolbar-btn active">Show 32 (hide A-wins)</button>
   <button id="toggle-edges-btn" class="toolbar-btn active">Profitable edges only</button>
   <button id="toggle-minimal-btn" class="toolbar-btn active">Multi step</button>
+  <button id="reset-camera-btn" class="toolbar-btn">Reset camera</button>
   <div class="legend">
     <span class="legend-item"><span class="legend-dot" style="background:var(--a)"></span> A wins</span>
     <span class="legend-item"><span class="legend-dot" style="background:var(--b)"></span> B wins</span>
     <span class="legend-item"><span class="legend-dot" style="background:var(--c)"></span> C wins</span>
-    <span style="color:var(--muted);margin-left:.5rem">◇ = profitable deviation exists</span>
-    <span style="color:var(--muted)">dashed border = cycle &nbsp;·&nbsp; solid border = CW</span>
+    <span style="color:var(--muted);margin-left:.5rem">◆ = profitable deviation exists</span>
+    <span style="color:var(--muted)">height = graph depth (sources high, sinks low)</span>
     <span style="color:var(--green)">— →A</span>
     <span style="color:var(--yellow)">— →B</span>
-    <span style="color:var(--muted)">solid edge = direct 1-step deviation &nbsp;·&nbsp; dashed edge = multi-step shortcut (Multi step mode)</span>
+    <span style="color:var(--muted)">drag to rotate · scroll to zoom · click a node to open it in the Explorer</span>
   </div>
 </div>
 
-<div id="graph-container">
-  <svg id="graph-svg"></svg>
-</div>
+<div id="graph-container"></div>
 
 <div id="tooltip"></div>
 
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
 <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
-<script type="module" src="graph.js"></script>
+<script type="module" src="graph3d.js"></script>
 <script>
-  // Restore explorer state in the nav link from sessionStorage
   document.addEventListener('DOMContentLoaded', () => {
     const saved = sessionStorage.getItem('explorerHash');
     if (saved) {

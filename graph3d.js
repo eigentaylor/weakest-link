@@ -12,7 +12,7 @@ const PROFIT_COLOR = { A: '#34d399', B: '#fde68a' };
 // Coarse structural layer spacing and fine winner-quality "bump" scale — tuned
 // so the 7 structural layers stay visually distinct while a profitable
 // deviation to a better winner still pops relative to its structural peers.
-const LAYER_SPACING = 14;
+const LAYER_SPACING = 15;
 const BUMP_SCALE = 6;
 
 // ── State ─────────────────────────────────────────────────────────────────────

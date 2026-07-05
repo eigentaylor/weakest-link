@@ -182,6 +182,8 @@ for (const s of allStates) {
       for (const dev of (minDevByMid[mid] || [])) {
         if (PREF[dev.winner] > u0) {
           dev.profitable = true;
+          dev.hops = 1;
+          dev.path = [{ label: dev.label, key: dev.key, winner: dev.winner }];
           minimalProfitableDeviations.push(dev);
         }
       }
@@ -200,30 +202,74 @@ for (const s of allStates) {
     anyProfitable: profitableDeviations.length > 0,
     minimalNeighbours,
     minimalProfitableDeviations,
+    anyMinimalProfitable: minimalProfitableDeviations.length > 0,
   });
 }
 
-// Identify the 6 profitable-deviation source states and tag archetypes
+// Second pass: monotone multi-step reachability over the neighboursMinimal graph.
+// An edge cur -> nb may only be traversed if PREF[nb.winner] >= PREF[curWinner]
+// (the outcome may never get strictly worse along the way). Any state reached
+// this way whose PREF strictly exceeds the start's PREF is a valid multi-step
+// profitable target — BFS naturally yields the shortest such monotone path.
+for (const [startKey, startData] of stateData) {
+  const u0 = PREF[startData.winner];
+  const parent = new Map();
+  parent.set(startKey, { parentKey: null, label: null, hops: 0 });
+  const queue = [startKey];
+  while (queue.length) {
+    const curKey = queue.shift();
+    const curInfo = parent.get(curKey);
+    const curPref = PREF[stateData.get(curKey).winner];
+    for (const nb of stateData.get(curKey).minimalNeighbours) {
+      if (parent.has(nb.key)) continue;
+      if (PREF[nb.winner] < curPref) continue;
+      parent.set(nb.key, { parentKey: curKey, label: nb.label, hops: curInfo.hops + 1 });
+      queue.push(nb.key);
+    }
+  }
+
+  const multiStepProfitableDeviations = [];
+  for (const [key, info] of parent) {
+    if (key === startKey) continue;
+    const targetData = stateData.get(key);
+    if (PREF[targetData.winner] <= u0) continue;
+    const path = [];
+    let cur = key;
+    while (cur !== startKey) {
+      const { parentKey, label } = parent.get(cur);
+      path.unshift({ label, key: cur, winner: stateData.get(cur).winner });
+      cur = parentKey;
+    }
+    multiStepProfitableDeviations.push({
+      key,
+      winner: targetData.winner,
+      newState: targetData.state,
+      hops: info.hops,
+      path,
+    });
+  }
+  startData.multiStepProfitableDeviations = multiStepProfitableDeviations;
+}
+
+// Identify the single-step-profitable source states and tag archetypes
 // Archetype 1 (betray A): weak_AB or flip_AB from C-wins cycle, improves to B
 // Archetype 2 (bury BC): flip_BC or push_BC from B-wins state, improves to A
 const profitableStates = [];
 for (const [key, data] of stateData) {
-  if (data.winner !== 'A' && data.anyProfitable) {
+  if (data.winner !== 'A' && data.anyMinimalProfitable) {
     // Determine archetype
     let archetype = null;
-    for (const dev of data.profitableDeviations) {
-      if (dev.tag === 'MIN') {
-        const lab = dev.label;
-        const nw = dev.winner;
-        if ((lab.startsWith('weak_AB') || lab.startsWith('flip_AB')) && nw === 'B') {
-          archetype = 1;
-        } else if ((lab.startsWith('flip_BC') || lab.startsWith('push_BC')) && nw === 'A') {
-          archetype = 2;
-        } else if (nw === 'A') {
-          archetype = 2;
-        } else if (nw === 'B') {
-          archetype = 1;
-        }
+    for (const dev of data.minimalProfitableDeviations) {
+      const lab = dev.label;
+      const nw = dev.winner;
+      if ((lab.startsWith('weak_AB') || lab.startsWith('flip_AB')) && nw === 'B') {
+        archetype = 1;
+      } else if ((lab.startsWith('flip_BC') || lab.startsWith('push_BC')) && nw === 'A') {
+        archetype = 2;
+      } else if (nw === 'A') {
+        archetype = 2;
+      } else if (nw === 'B') {
+        archetype = 1;
       }
     }
     data.archetype = archetype;

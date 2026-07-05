@@ -38,35 +38,40 @@ function buildData() {
   nodes = visible.map(s => {
     const key = stateKey(s);
     const data = stateData.get(key);
+    const profitable = showMinimalEdges
+      ? data.anyMinimalProfitable
+      : data.multiStepProfitableDeviations.length > 0;
     return {
       id: key,
       state: s,
       data,
       winner: winner(s),
-      profitable: data.anyProfitable,
+      profitable,
       aWins: winner(s) === 'A',
     };
   });
 
   const nodeById = new Map(nodes.map(n => [n.id, n]));
 
-  // All deviation edges (direct refs for independent tick updates)
+  // All deviation edges — always the atomic single-step (neighboursMinimal) graph;
+  // these are the only genuinely adjacent moves under the current model.
   allLinks = [];
   for (const n of nodes) {
-    const nbrs = showMinimalEdges ? n.data.minimalNeighbours : n.data.allNeighbours;
-    for (const nb of nbrs) {
+    for (const nb of n.data.minimalNeighbours) {
       const target = nodeById.get(nb.key);
       if (target) allLinks.push({ source: n, target, label: nb.label, w: nb.winner });
     }
   }
 
-  // Profitable edges (string IDs → forceLink resolves them)
+  // Profitable edges (string IDs → forceLink resolves them). Single step = direct
+  // one-hop improvements; multi step = monotone (never-worse) chains that end in a
+  // strict improvement, drawn as shortcuts (dashed when the shortest path is >1 hop).
   profitLinks = [];
   for (const n of nodes) {
-    const devs = showMinimalEdges ? n.data.minimalProfitableDeviations : n.data.profitableDeviations;
+    const devs = showMinimalEdges ? n.data.minimalProfitableDeviations : n.data.multiStepProfitableDeviations;
     for (const dev of devs) {
       if (visibleKeys.has(dev.key)) {
-        profitLinks.push({ source: n.id, target: dev.key, w: dev.winner });
+        profitLinks.push({ source: n.id, target: dev.key, w: dev.winner, hops: dev.hops, dashed: dev.hops > 1 });
       }
     }
   }
@@ -152,6 +157,7 @@ function render() {
     .attr('stroke', d => PROFIT_COLOR[d.w])
     .attr('stroke-width', 2)
     .attr('stroke-opacity', 1)
+    .attr('stroke-dasharray', d => d.dashed ? '6,4' : null)
     .attr('marker-end', d => `url(#arrow-${d.w})`)
     .attr('pointer-events', 'none');
 
@@ -202,8 +208,9 @@ function render() {
     }
   });
 
-  // Archetype labels
-  nodeEls.filter(d => d.profitable)
+  // Archetype labels (only for states that carry an archetype tag — the
+  // multi-step-only profitable states have no single-step archetype to show)
+  nodeEls.filter(d => d.profitable && d.data.archetype != null)
     .append('text')
     .attr('dy', -14)
     .attr('text-anchor', 'middle')
@@ -218,7 +225,9 @@ function render() {
   // Repulsion + centering handle the rest.
   sim = d3.forceSimulation(nodes)
     .force('link', d3.forceLink(profitLinks)
-      .id(d => d.id).distance(90).strength(0.6))
+      .id(d => d.id)
+      .distance(d => d.hops > 1 ? 90 + (d.hops - 1) * 50 : 90)
+      .strength(d => d.hops > 1 ? 0.25 : 0.6))
     .force('charge', d3.forceManyBody().strength(-320).distanceMax(400))
     .force('cx', d3.forceX(W / 2).strength(0.05))
     .force('cy', d3.forceY(H / 2).strength(0.05))
@@ -255,8 +264,8 @@ function applyHover(d) {
   while (queue.length) {
     const curr = queue.shift();
     const neighbours = showAllEdges
-      ? (showMinimalEdges ? curr.data.minimalNeighbours : curr.data.allNeighbours)
-      : (showMinimalEdges ? curr.data.minimalProfitableDeviations : curr.data.profitableDeviations);
+      ? curr.data.minimalNeighbours
+      : (showMinimalEdges ? curr.data.minimalProfitableDeviations : curr.data.multiStepProfitableDeviations);
     for (const nb of neighbours) {
       if (!reachable.has(nb.key) && nodeById.has(nb.key)) {
         reachable.add(nb.key);
@@ -286,6 +295,7 @@ function applyHover(d) {
     .attr('stroke', l => l.w === 'A' ? PROFIT_COLOR.A : l.w === 'B' ? PROFIT_COLOR.B : '#94a3b8')
     .attr('stroke-width', 1.5)
     .attr('stroke-opacity', 0.75)
+    .attr('stroke-dasharray', l => l.dashed ? '6,4' : null)
     .attr('marker-end', l => `url(#arrow-hover-${l.w === 'A' ? 'A' : l.w === 'B' ? 'B' : 'C'})`)
     .attr('pointer-events', 'none');
 }
@@ -303,9 +313,10 @@ function clearHover() {
 function showTooltip(d) {
   const w = d.winner;
 
-  // Group neighbours by outcome, dedup labels with counts
+  // Group neighbours by outcome, dedup labels with counts (always the atomic
+  // single-step edges — same set as the gray background)
   const byOutcome = { A: {}, B: {}, C: {} };
-  for (const nb of (showMinimalEdges ? d.data.minimalNeighbours : d.data.allNeighbours)) {
+  for (const nb of d.data.minimalNeighbours) {
     const bucket = byOutcome[nb.winner];
     bucket[nb.label] = (bucket[nb.label] || 0) + 1;
   }
@@ -317,10 +328,23 @@ function showTooltip(d) {
     return `<div><span style="color:${COLOR[c]};font-weight:700">→${c}</span> <span style="color:var(--muted)">${labels}</span></div>`;
   }).join('');
 
+  // Multi-step mode: list every profitable-reachable target with its shortest path
+  let multiStepHtml = '';
+  if (!showMinimalEdges && d.data.multiStepProfitableDeviations.length) {
+    const items = [...d.data.multiStepProfitableDeviations]
+      .sort((a, b) => a.hops - b.hops)
+      .map(t => {
+        const pathStr = t.path.map(p => p.label).join(' → ');
+        return `<div><span style="color:${COLOR[t.winner]};font-weight:700">⇢${t.winner}</span> <span style="color:var(--muted)">(${t.hops} hop${t.hops > 1 ? 's' : ''}): ${pathStr}</span></div>`;
+      }).join('');
+    multiStepHtml = `<div class="tt-devs">${items}</div>`;
+  }
+
   tooltip.innerHTML = `
     <div class="tt-desc">${d.data.desc}</div>
     <div class="tt-winner" style="color:${COLOR[w]}">winner: ${w} <span style="color:var(--muted);font-weight:400;font-size:0.7rem">${d.data.isCycle ? '[cycle]' : '[CW]'}</span></div>
     ${rows ? `<div class="tt-devs">${rows}</div>` : ''}
+    ${multiStepHtml}
   `;
   tooltip.style.display = 'block';
 }

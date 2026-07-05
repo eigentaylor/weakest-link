@@ -84,6 +84,29 @@ def neighbours(state):
                 ns = list(others); ns.insert(j, (mid, d))
                 yield tuple(ns), f'push_{mid}'
 
+# ── minimal (true single-step) neighbours ──────────────────────────────────
+# The current model restricts a "simple manipulation" to exactly one adjacent
+# move: swap matchup-rank 1&2, swap matchup-rank 2&3, or flip the direction of
+# the rank-3 (smallest) matchup. neighbours() above is kept as-is (it still
+# backs the "all profitable cases"/worked-examples reports below, which mirror
+# the site's Explorer page), but neighbours_minimal() is the true atomic-move
+# generator that the graph page's single/multi-step toggle is built on.
+def neighbours_minimal(state):
+    sl = list(state)
+    for k, (mid, d) in enumerate(sl):
+        others = [x for x in sl if x[0] != mid]
+        if d == SINCERE[mid]:
+            if k < 2:
+                ns = list(others); ns.insert(k + 1, (mid, d))
+                yield tuple(ns), f'weak_{mid}'
+            if k == 2:
+                ns = list(others); ns.insert(2, (mid, -d))
+                yield tuple(ns), f'flip_{mid}'
+        else:
+            if k > 0:
+                ns = list(others); ns.insert(k - 1, (mid, d))
+                yield tuple(ns), f'push_{mid}'
+
 # ── all 48 states ──────────────────────────────────────────────────────────
 all_states = []
 for dirs in product((+1, -1), repeat=3):
@@ -231,52 +254,95 @@ show_example(
 
 print('\n' + '═' * W)
 
-# ── multi-step reachability ─────────────────────────────────────────────────
-def bfs_parents(start):
-    """BFS from start; return {state: (prev_state, label)} for all reachable."""
-    parent = {start: (None, None)}
+# ── true single-step (minimal model) report ─────────────────────────────────
+# Mirrors minimax.js's minimalNeighbours/minimalProfitableDeviations — each
+# matchup has at most one available move per state, so there's no MIN/MORE
+# strength distinction here (unlike the neighbours()-based report above).
+minimal_profitable_states = []
+for s in all_states:
+    w = winner(s)
+    if w == 'A':
+        continue
+    u0 = PREF[w]
+    devs = [(ns, lab, winner(ns)) for ns, lab in neighbours_minimal(s)]
+    profitable = [(ns, lab, nw) for ns, lab, nw in devs if PREF[nw] > u0]
+    if profitable:
+        minimal_profitable_states.append((s, w, profitable))
+
+print('═' * W)
+print('  TRUE SINGLE-STEP (MINIMAL / ADJACENT-SWAP) MODEL')
+print('  A single step is exactly one of: swap matchup-rank 1&2, swap rank 2&3,')
+print('  or flip the direction of the rank-3 (smallest) matchup.')
+print('═' * W)
+print(f'\n  Single-step-profitable states: {len(minimal_profitable_states)} of {counts["A_loses"]} (A does not win)')
+for s, w, profitable in minimal_profitable_states:
+    print(f'  ┌ {cycle_tag(s)} {desc(s):<46} winner={w}')
+    for ns, lab, nw in profitable:
+        print(f'  │    {"★" if nw == "A" else "·"} {cycle_tag(ns)} {lab:<9} → {desc(ns):<44} → {nw}')
+    print()
+
+# ── monotone multi-step reachability (minimal model) ────────────────────────
+# Fixed graph G': edge u->v iff v in neighbours_minimal(u) AND
+# PREF[winner(v)] >= PREF[winner(u)] — the outcome may never get strictly
+# worse along a path. Any node reached this way with PREF > the start's PREF
+# is a valid multi-step-profitable target; BFS gives the shortest such path.
+def build_monotone_graph():
+    adj = {}
+    for s in all_states:
+        wu = winner(s)
+        adj[s] = [(ns, lab) for ns, lab in neighbours_minimal(s)
+                  if PREF[winner(ns)] >= PREF[wu]]
+    return adj
+
+MONO_ADJ = build_monotone_graph()
+
+def bfs_monotone(start):
+    """BFS from start over MONO_ADJ; return {state: (prev_state, label, hops)}."""
+    parent = {start: (None, None, 0)}
     q = deque([start])
     while q:
         curr = q.popleft()
-        for ns, lab in neighbours(curr):
+        _, _, hops = parent[curr]
+        for ns, lab in MONO_ADJ[curr]:
             if ns not in parent:
-                parent[ns] = (curr, lab)
+                parent[ns] = (curr, lab, hops + 1)
                 q.append(ns)
     return parent
 
-def reconstruct(parent, target):
-    """Shortest path as [(state, label_used_to_arrive)]; first entry is (start, None)."""
+def reconstruct_monotone(parent, target):
+    """Path as [(state, label_used_to_arrive, hops)]; first entry is (start, None, 0)."""
     path = []
     node = target
     while node is not None:
-        prev, lab = parent[node]
-        path.append((node, lab))
+        prev, lab, hops = parent[node]
+        path.append((node, lab, hops))
         node = prev
     path.reverse()
     return path
 
 def show_path(path, u0):
     start_w = winner(path[0][0])
-    for i, (state, lab) in enumerate(path):
+    for state, lab, hops in path:
         nw = winner(state)
         ct = cycle_tag(state)
-        if i == 0:
+        if hops == 0:
             print(f'  │  start      : {ct} {desc(state):<42} winner={nw}')
         else:
             if   nw == start_w:    cmp = '='
             elif PREF[nw] > u0:    cmp = '★' if nw == 'A' else '↑'
             else:                  cmp = '↓'
-            print(f'  │  step {i} [{lab}]: {ct} {desc(state):<42} winner={nw} {cmp}')
+            print(f'  │  step {hops} [{lab}]: {ct} {desc(state):<42} winner={nw} {cmp}')
 
 print('═' * W)
-print('  MULTI-STEP DEVIATION PATHS')
-print('  Coalition makes sequential single-matchup deviations across multiple rounds.')
-print('  Paths may worsen the outcome temporarily before reaching a better state.')
+print('  MULTI-STEP DEVIATION PATHS (minimal model)')
+print('  Coalition chains adjacent single steps; the outcome may never get')
+print('  strictly worse along the way, but the final step must strictly improve it.')
 print('═' * W)
 
 multi_only_cases = []   # no 1-step help, but 2+ steps profitable
 upgrade_cases    = []   # 1-step reaches B; multi-step can reach A
 no_path_count    = 0
+total_pairs      = 0
 
 pref_name = {0: 'C', 1: 'B', 2: 'A'}
 
@@ -286,31 +352,32 @@ for s in all_states:
         continue
     u0 = PREF[w]
 
-    best_single = max((PREF[winner(ns)] for ns, _ in neighbours(s)), default=u0)
+    best_single = max((PREF[winner(ns)] for ns, _ in neighbours_minimal(s)), default=u0)
 
-    parent_map = bfs_parents(s)
-    reachable  = [r for r in parent_map if r != s]
-    best_multi = max((PREF[winner(r)] for r in reachable), default=u0)
+    parent_map = bfs_monotone(s)
+    better = [r for r in parent_map if r != s and PREF[winner(r)] > u0]
+    total_pairs += len(better)
 
-    if best_multi <= u0:
+    if not better:
         no_path_count += 1
-    elif best_single <= u0:
-        # Multi-only: single step is never profitable
-        targets = [r for r in reachable if PREF[winner(r)] == best_multi]
-        best_t  = min(targets, key=lambda r: len(reconstruct(parent_map, r)))
-        multi_only_cases.append((s, w, reconstruct(parent_map, best_t)))
+        continue
+
+    best_multi = max(PREF[winner(r)] for r in better)
+    targets = [r for r in better if PREF[winner(r)] == best_multi]
+    best_t  = min(targets, key=lambda r: parent_map[r][2])
+
+    if best_single <= u0:
+        multi_only_cases.append((s, w, reconstruct_monotone(parent_map, best_t)))
     elif best_multi > best_single:
-        # Upgrade: single-step helps but multi-step reaches a higher outcome
-        targets = [r for r in reachable if PREF[winner(r)] == best_multi]
-        best_t  = min(targets, key=lambda r: len(reconstruct(parent_map, r)))
-        upgrade_cases.append((s, w, best_single, reconstruct(parent_map, best_t)))
+        upgrade_cases.append((s, w, best_single, reconstruct_monotone(parent_map, best_t)))
     # else: single-step already achieves the best reachable outcome
 
 print(f'\n  Of {counts["A_loses"]} states where A does not win:')
-print(f'    {counts["any_help"]:>2}  profitable in 1 step (shown above)')
+print(f'    {len(minimal_profitable_states):>2}  profitable in 1 step (shown above)')
 print(f'    {len(upgrade_cases):>2}    of which: multi-step reaches an even better outcome')
 print(f'    {len(multi_only_cases):>2}  profitable ONLY via 2+ step chains')
 print(f'    {no_path_count:>2}  no profitable path at any depth')
+print(f'    {total_pairs:>2}  total profitable (source, target) pairs across all states')
 
 if multi_only_cases:
     print(f'\n  ── Multi-step-only profitable (1-step never helps) ──────────────────')

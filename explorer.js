@@ -207,7 +207,10 @@ function renderDeviationPanel() {
       const rowClass = profitable ? 'dev-row profitable' : 'dev-row';
 
       html += `<div class="${rowClass}" data-state="${encodeState(dev.newState)}" style="cursor:pointer">
-        <span class="dev-label">${dev.label}</span>
+        <span class="dev-label-group">
+          <span class="dev-label">${dev.label}</span>
+          <span class="dev-kind kind-${dev.kind}">${dev.kind}</span>
+        </span>
         <span class="dev-desc">${desc(dev.newState)}</span>
         <span class="dev-winner ${candColor(nw)}">${nw}</span>
         <span>${symbol} ${tagHtml}</span>

@@ -274,7 +274,7 @@ nav .spacer { flex: 1; }
 
 .dev-row {
   display: grid;
-  grid-template-columns: 9rem 1fr 3rem 2rem;
+  grid-template-columns: 11.5rem 1fr 3rem 2rem;
   align-items: center;
   gap: 0.5rem;
   padding: 0.4rem 0.5rem;
@@ -293,11 +293,30 @@ nav .spacer { flex: 1; }
   background: rgba(129, 140, 248, 0.12);
 }
 
+.dev-label-group {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
 .dev-label {
   font-family: 'Fira Mono', monospace;
   color: var(--muted);
   font-size: 0.75rem;
 }
+
+.dev-kind {
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 0.05rem 0.32rem;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.kind-reorder { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
+.kind-flip { background: rgba(248, 113, 113, 0.12); color: var(--c); border: 1px solid rgba(248, 113, 113, 0.3); }
 
 .dev-desc {
   font-family: 'Fira Mono', monospace;
@@ -395,15 +414,17 @@ nav .spacer { flex: 1; }
 /* ── Tooltip (pinned bottom-right, non-intrusive) ── */
 #tooltip {
   position: fixed;
-  right: 1rem;
-  bottom: 1.25rem;
-  width: 210px;
-  background: rgba(15, 17, 23, 0.82);
+  right: 1.25rem;
+  bottom: 1.5rem;
+  width: 380px;
+  max-height: 65vh;
+  overflow-y: auto;
+  background: rgba(15, 17, 23, 0.92);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 0.55rem 0.75rem;
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
   pointer-events: none;
   z-index: 50;
   display: none;
@@ -411,29 +432,44 @@ nav .spacer { flex: 1; }
 
 #tooltip .tt-desc {
   font-family: monospace;
-  font-size: 0.7rem;
+  font-size: 0.95rem;
   color: var(--muted);
-  margin-bottom: 0.25rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  margin-bottom: 0.5rem;
+  white-space: normal;
+  overflow-wrap: break-word;
 }
 
 #tooltip .tt-winner {
-  font-size: 0.85rem;
+  font-size: 1.25rem;
   font-weight: 700;
-  margin-bottom: 0.3rem;
+  margin-bottom: 0.5rem;
 }
 
 #tooltip .tt-devs {
   border-top: 1px solid var(--border);
-  padding-top: 0.3rem;
-  margin-top: 0.3rem;
-  font-size: 0.7rem;
+  padding-top: 0.5rem;
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
-  line-height: 1.4;
+  gap: 0.35rem;
+  line-height: 1.5;
+}
+
+#tooltip .tt-dev-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+#tooltip .tt-kind {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 0.05rem 0.35rem;
+  border-radius: 3px;
+  white-space: nowrap;
 }
 
 /* ── Legend ── */

@@ -17,9 +17,9 @@ A single step ("simple manipulation") is exactly one of: swap matchup-rank 1&2, 
 
 Of 48 possible states (8 direction combinations × 6 rank orderings), A wins in 16 states. Of the remaining 32, exactly **2** have a profitable single-step deviation:
 
-**Archetype 1 — Betray your favorite (weaken AB):** `(C>A) > (A>B) > (B>C)` [C wins] — weakening A>B by one rank reaches `(C>A) > (B>C) > (A>B)`, improving the outcome to B.
+**Archetype 1 — Betray your favorite (lie B>A):** `(C>A) > (A>B) > (B>C)` [C wins] — a few voters lying B>A weakens A>B by one rank, reaching `(C>A) > (B>C) > (A>B)`, improving the outcome to B.
 
-**Archetype 2 — Bury your second choice (push BC):** `(A>C) > (B>A) > (C>B)` [B wins] — pushing B>C up one rank reaches `(A>C) > (C>B) > (B>A)`, improving the outcome to A.
+**Archetype 2 — Bury your second choice (lie C>B):** `(A>C) > (B>A) > (C>B)` [B wins] — more voters lying C>B pushes that matchup up one rank, reaching `(A>C) > (C>B) > (B>A)`, improving the outcome to A.
 
 ## Multi-step deviations can help
 

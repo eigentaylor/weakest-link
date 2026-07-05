@@ -313,19 +313,25 @@ function clearHover() {
 function showTooltip(d) {
   const w = d.winner;
 
-  // Group neighbours by outcome, dedup labels with counts (always the atomic
-  // single-step edges — same set as the gray background)
+  // Group neighbours by outcome, dedup (label + kind) with counts. The label
+  // alone isn't unique — reorder and flip on the same matchup share the same
+  // "lie X>Y" text, so kind must be part of the grouping key.
   const byOutcome = { A: {}, B: {}, C: {} };
   for (const nb of d.data.minimalNeighbours) {
     const bucket = byOutcome[nb.winner];
-    bucket[nb.label] = (bucket[nb.label] || 0) + 1;
+    const key = `${nb.label}|${nb.kind}`;
+    if (!bucket[key]) bucket[key] = { label: nb.label, kind: nb.kind, count: 0 };
+    bucket[key].count++;
   }
 
   const rows = ['A', 'B', 'C'].map(c => {
-    const entries = Object.entries(byOutcome[c]);
+    const entries = Object.values(byOutcome[c]);
     if (!entries.length) return '';
-    const labels = entries.map(([lbl, n]) => n > 1 ? `${lbl}×${n}` : lbl).join(' · ');
-    return `<div><span style="color:${COLOR[c]};font-weight:700">→${c}</span> <span style="color:var(--muted)">${labels}</span></div>`;
+    const items = entries.map(e => {
+      const countStr = e.count > 1 ? ` ×${e.count}` : '';
+      return `<span class="tt-dev-item">${e.label}${countStr} <span class="tt-kind kind-${e.kind}">${e.kind}</span></span>`;
+    }).join(' · ');
+    return `<div><span style="color:${COLOR[c]};font-weight:700">→${c}</span> <span style="color:var(--muted)">${items}</span></div>`;
   }).join('');
 
   // Multi-step mode: list every profitable-reachable target with its shortest path

@@ -40,6 +40,21 @@ function stateKey(state) {
   return state.map(([m, d]) => `${m}${d > 0 ? '+' : '-'}`).join(',');
 }
 
+// Every deviation on a matchup is implemented by some voters insincerely
+// reporting the *opposite* of their sincere preference on that matchup — e.g.
+// weakening (A>B) is done by a few voters lying B>A (not enough to flip the
+// majority); flipping it is the same lie, just from enough voters to flip the
+// majority; pushing an already-flipped matchup is more of the same lie. So the
+// human-facing label for a given matchup is fixed regardless of move type.
+const LIE = { AB: 'B>A', AC: 'C>A', BC: 'C>B' };
+function lieLabel(mid) {
+  return `lie ${LIE[mid]}`;
+}
+
+// `kind` mirrors the two move types from the reference model:
+// 'reorder' (swap of the 1st kind) reshuffles matchup strength without changing
+// who wins the matchup (weak_/push_); 'flip' (swap of the 2nd kind) reverses the
+// winner of the matchup, and is only ever taken from a sincere starting direction.
 function* neighbours(state) {
   for (let k = 0; k < 3; k++) {
     const [mid, d] = state[k];
@@ -49,20 +64,20 @@ function* neighbours(state) {
       for (let j = k + 1; j < 3; j++) {
         const ns = [...others];
         ns.splice(j, 0, [mid, d]);
-        yield { newState: ns, label: `weak_${mid}`, type: 'weak' };
+        yield { newState: ns, label: lieLabel(mid), mid, kind: 'reorder', type: 'weak' };
       }
       // flip: opposite dir, rank 2→0 (min to max strength)
       for (let j = 2; j >= 0; j--) {
         const ns = [...others];
         ns.splice(j, 0, [mid, -d]);
-        yield { newState: ns, label: `flip_${mid}`, type: 'flip' };
+        yield { newState: ns, label: lieLabel(mid), mid, kind: 'flip', type: 'flip' };
       }
     } else {
       // insincere: push to higher rank (rank k-1→0, min to max strength)
       for (let j = k - 1; j >= 0; j--) {
         const ns = [...others];
         ns.splice(j, 0, [mid, d]);
-        yield { newState: ns, label: `push_${mid}`, type: 'push' };
+        yield { newState: ns, label: lieLabel(mid), mid, kind: 'reorder', type: 'push' };
       }
     }
   }
@@ -78,18 +93,18 @@ function* neighboursMinimal(state) {
       if (k < 2) {
         const ns = [...others];
         ns.splice(k + 1, 0, [mid, d]);
-        yield { newState: ns, label: `weak_${mid}`, type: 'weak' };
+        yield { newState: ns, label: lieLabel(mid), mid, kind: 'reorder', type: 'weak' };
       }
       if (k === 2) {
         const ns = [...others];
         ns.splice(2, 0, [mid, -d]);
-        yield { newState: ns, label: `flip_${mid}`, type: 'flip' };
+        yield { newState: ns, label: lieLabel(mid), mid, kind: 'flip', type: 'flip' };
       }
     } else {
       if (k > 0) {
         const ns = [...others];
         ns.splice(k - 1, 0, [mid, d]);
-        yield { newState: ns, label: `push_${mid}`, type: 'push' };
+        yield { newState: ns, label: lieLabel(mid), mid, kind: 'reorder', type: 'push' };
       }
     }
   }
@@ -134,12 +149,11 @@ for (const s of allStates) {
   const allNeighbours = [];
   const devByMid = {};
 
-  for (const { newState, label, type } of neighbours(s)) {
+  for (const { newState, label, mid, kind, type } of neighbours(s)) {
     const nk = stateKey(newState);
     const nw = winner(newState);
-    const entry = { newState, label, type, winner: nw, key: nk };
+    const entry = { newState, label, mid, kind, type, winner: nw, key: nk };
     allNeighbours.push(entry);
-    const mid = label.split('_')[1];
     if (!devByMid[mid]) devByMid[mid] = [];
     devByMid[mid].push(entry);
   }
@@ -165,12 +179,11 @@ for (const s of allStates) {
   // Minimal (single-step) neighbours
   const minimalNeighbours = [];
   const minDevByMid = {};
-  for (const { newState, label, type } of neighboursMinimal(s)) {
+  for (const { newState, label, mid, kind, type } of neighboursMinimal(s)) {
     const nk = stateKey(newState);
     const nw = winner(newState);
-    const entry = { newState, label, type, winner: nw, key: nk };
+    const entry = { newState, label, mid, kind, type, winner: nw, key: nk };
     minimalNeighbours.push(entry);
-    const mid = label.split('_')[1];
     if (!minDevByMid[mid]) minDevByMid[mid] = [];
     minDevByMid[mid].push(entry);
   }
@@ -260,11 +273,10 @@ for (const [key, data] of stateData) {
     // Determine archetype
     let archetype = null;
     for (const dev of data.minimalProfitableDeviations) {
-      const lab = dev.label;
       const nw = dev.winner;
-      if ((lab.startsWith('weak_AB') || lab.startsWith('flip_AB')) && nw === 'B') {
+      if (dev.mid === 'AB' && (dev.type === 'weak' || dev.type === 'flip') && nw === 'B') {
         archetype = 1;
-      } else if ((lab.startsWith('flip_BC') || lab.startsWith('push_BC')) && nw === 'A') {
+      } else if (dev.mid === 'BC' && (dev.type === 'flip' || dev.type === 'push') && nw === 'A') {
         archetype = 2;
       } else if (nw === 'A') {
         archetype = 2;

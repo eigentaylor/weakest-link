@@ -45,11 +45,26 @@ def winner(state):
     return b if ld == +1 else a
 
 # ── description ────────────────────────────────────────────────────────────
+# Single source of truth for state notation: <weakest | middle | strongest>,
+# each term written winner->loser (e.g. A->C means "A beats C"), listed in
+# INCREASING strength (state is stored strongest-first, so this reverses it).
+# The winner is marked with **bold** in place — every appearance for a
+# Condorcet winner (it only ever appears as the beating side), or just its
+# one appearance as the LOSER of the weakest matchup when it wins a cycle,
+# showing why the rule picked it. Mirrors formatState() in minimax.js.
 def desc(state):
-    def f(mid, d):
+    w = winner(state)
+    cycle = is_cycle(state)
+    terms = []
+    for i, (mid, d) in enumerate(reversed(state)):
         a, b = PAIRS[mid]
-        return f'({a}>{b})' if d == +1 else f'({b}>{a})'
-    return ' > '.join(f(m, d) for m, d in state)
+        win_l, lose_l = (a, b) if d == +1 else (b, a)
+        if not cycle and win_l == w:
+            win_l = f'**{win_l}**'
+        elif cycle and i == 0 and lose_l == w:
+            lose_l = f'**{lose_l}**'
+        terms.append(f'{win_l}→{lose_l}')
+    return '⟨' + ' ∣ '.join(terms) + '⟩'
 
 # ── cycle detection ────────────────────────────────────────────────────────
 def is_cycle(state):
@@ -227,28 +242,28 @@ print('\n' + '═' * W)
 print('  WORKED EXAMPLES')
 print('═' * W)
 
-# Ex 1: (A>B) > (C>B) > (C>A)   [deviate on AB — 5 alternatives]
+# Ex 1: ⟨C→A ∣ C→B ∣ A→B⟩   [deviate on AB — 5 alternatives]
 show_example(
-    'Ex 1: (A>B) > (C>B) > (C>A)',
+    'Ex 1: ⟨**C**→A ∣ **C**→B ∣ A→B⟩',
     (('AB',+1), ('BC',-1), ('AC',-1))
 )
 
-# Ex 2: (A>C) > (B>A) > (B>C)   [deviate on BC — 3 alternatives, on AC — 5 alt]
+# Ex 2: ⟨B→C ∣ B→A ∣ A→C⟩   [deviate on BC — 3 alternatives, on AC — 5 alt]
 show_example(
-    'Ex 2: (A>C) > (B>A) > (B>C)',
+    'Ex 2: ⟨**B**→C ∣ **B**→A ∣ A→C⟩',
     (('AC',+1), ('AB',-1), ('BC',+1))
 )
 
-# Ex 3: (A>B) > (C>A) > (B>C)   [5 dev on AB, 1 push on AC, 3 dev on BC]
+# Ex 3: ⟨B→C ∣ C→A ∣ A→B⟩   [5 dev on AB, 1 push on AC, 3 dev on BC]
 show_example(
-    'Ex 3: (A>B) > (C>A) > (B>C)',
+    'Ex 3: ⟨B→**C** ∣ C→A ∣ A→B⟩',
     (('AB',+1), ('AC',-1), ('BC',+1))
 )
 
-# Ex 4: all-insincere state — (C>A) > (C>B) > (B>A)
+# Ex 4: all-insincere state — ⟨B→A ∣ C→B ∣ C→A⟩
 #   AC at rank 0 insincere → 0 push; BC at rank 1 → 1 push; AB at rank 2 → 2 push
 show_example(
-    'Ex 4: (C>A) > (C>B) > (B>A)   [push-only: 0+1+2=3 edges]',
+    'Ex 4: ⟨B→A ∣ **C**→B ∣ **C**→A⟩   [push-only: 0+1+2=3 edges]',
     (('AC',-1), ('BC',-1), ('AB',-1))
 )
 

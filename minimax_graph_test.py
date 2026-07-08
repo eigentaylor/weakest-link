@@ -413,3 +413,169 @@ else:
     print(f'\n  No upgrade cases — 1-step already achieves the best reachable outcome.')
 
 print('═' * W)
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  N-CANDIDATE GENERALIZATION  (used below for 4-candidate mode)
+#
+#  State = ranked tuple of all C(N,2) matchups by margin (rank 0 = largest
+#  margin ... rank M-1 = smallest/"weakest" margin), each tagged with a
+#  direction. Coalition preference order is the candidate list itself
+#  (first = most preferred); "sincere" direction on every matchup is the
+#  more-preferred candidate winning.
+#
+#  Winner rule (true minimax, not just the 3-candidate shortcut): a
+#  candidate's "worst loss" is their smallest-rank (= largest-margin) defeat.
+#  Condorcet winner (no losses) is elected outright; otherwise the winner is
+#  whoever's worst loss is the LEAST damaging (largest rank / smallest
+#  margin). For N=3 this collapses to the original "loser of the last
+#  matchup" rule, verified above (0 mismatches over all 48 states).
+# ═══════════════════════════════════════════════════════════════════════════
+def build_election(candidates):
+    pref = {c: len(candidates) - 1 - i for i, c in enumerate(candidates)}
+    pairs = {}
+    for i, a in enumerate(candidates):
+        for b in candidates[i + 1:]:
+            pairs[a + b] = (a, b)
+    matchups = list(pairs)
+    sincere = {mid: +1 for mid in matchups}   # +1 = more-preferred side wins
+    return matchups, pairs, sincere, pref
+
+def worst_loss_ranks(state, pairs, candidates):
+    worst = {c: None for c in candidates}
+    for rank, (mid, d) in enumerate(state):
+        a, b = pairs[mid]
+        loser = b if d == +1 else a
+        if worst[loser] is None:            # first time seen = smallest rank = worst loss
+            worst[loser] = rank
+    return worst
+
+def winner_g(state, pairs, candidates):
+    worst = worst_loss_ranks(state, pairs, candidates)
+    for c in candidates:
+        if worst[c] is None:
+            return c                        # Condorcet winner
+    return max(candidates, key=lambda c: worst[c])
+
+def desc_g(state, pairs, candidates):
+    w = winner_g(state, pairs, candidates)
+    worst = worst_loss_ranks(state, pairs, candidates)
+    w_loss_rank = worst[w]                  # None if w is a Condorcet winner
+    terms = []
+    for rank, (mid, d) in enumerate(state):
+        a, b = pairs[mid]
+        win_l, lose_l = (a, b) if d == +1 else (b, a)
+        if w_loss_rank is None and win_l == w:
+            win_l = f'**{win_l}**'
+        elif w_loss_rank is not None and rank == w_loss_rank and lose_l == w:
+            lose_l = f'**{lose_l}**'
+        terms.append(f'{win_l}→{lose_l}')
+    terms.reverse()                         # display weakest-first
+    return '⟨' + ' ∣ '.join(terms) + '⟩'
+
+def cycle_tag_g(state, pairs, candidates):
+    return '[cyc]' if all(v is not None for v in worst_loss_ranks(state, pairs, candidates).values()) else '[CW] '
+
+def neighbours_minimal_g(state, sincere):
+    """Same atomic-move model as neighbours_minimal: adjacent-rank swap while
+    sincere ('weak'), swap while insincere ('push'), or flip-in-place at the
+    weakest rank ('flip'). Yields (new_state, label, source_rank)."""
+    M = len(state)
+    sl = list(state)
+    for k, (mid, d) in enumerate(sl):
+        others = [x for x in sl if x[0] != mid]
+        if d == sincere[mid]:
+            if k < M - 1:
+                ns = list(others); ns.insert(k + 1, (mid, d))
+                yield tuple(ns), f'weak_{mid}', k
+            if k == M - 1:
+                ns = list(others); ns.insert(M - 1, (mid, -d))
+                yield tuple(ns), f'flip_{mid}', k
+        else:
+            if k > 0:
+                ns = list(others); ns.insert(k - 1, (mid, d))
+                yield tuple(ns), f'push_{mid}', k
+
+def all_states_g(matchups):
+    states = []
+    for dirs in product((+1, -1), repeat=len(matchups)):
+        dm = dict(zip(matchups, dirs))
+        for perm in permutations(matchups):
+            states.append(tuple((m, dm[m]) for m in perm))
+    return states
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  FOUR-CANDIDATE MODE  (A ≻ B ≻ C ≻ D)
+#
+#  46080 states (= 6! × 2^6) — too many to render as a graph.html visual, so
+#  this reports counts first and only dumps the full per-case listing if the
+#  number of profitable-deviation states is small enough to read.
+# ═══════════════════════════════════════════════════════════════════════════
+CASE_DISPLAY_THRESHOLD = 60   # print full per-case listing only below this
+
+print('\n' + '═' * W)
+print('  FOUR-CANDIDATE MODE  ·  A ≻ B ≻ C ≻ D')
+print('═' * W)
+
+CANDS4 = ['A', 'B', 'C', 'D']
+MATCHUPS4, PAIRS4, SINCERE4, PREF4 = build_election(CANDS4)
+M4 = len(MATCHUPS4)   # 6 matchups → ranks 0..5; weakest=5, second-weakest=4
+all_states4 = all_states_g(MATCHUPS4)
+print(f'\n  Total states               : {len(all_states4)}  (= {M4}! × 2^{M4})')
+
+a_wins4 = a_loses4 = profitable_states4 = 0
+edge_counts = {'flip_weakest': 0, 'swap_two_weakest': 0, 'other': 0}
+profitable_cases4 = []   # (state, winner, [(ns, lab, nw, cat)])
+
+for s in all_states4:
+    w = winner_g(s, PAIRS4, CANDS4)
+    if w == 'A':
+        a_wins4 += 1
+        continue
+    a_loses4 += 1
+    u0 = PREF4[w]
+    rows = []
+    for ns, lab, k in neighbours_minimal_g(s, SINCERE4):
+        nw = winner_g(ns, PAIRS4, CANDS4)
+        if PREF4[nw] <= u0:
+            continue
+        if lab.startswith('flip_') and k == M4 - 1:
+            cat = 'flip_weakest'
+        elif (lab.startswith('weak_') and k == M4 - 2) or (lab.startswith('push_') and k == M4 - 1):
+            cat = 'swap_two_weakest'
+        else:
+            cat = 'other'
+        edge_counts[cat] += 1
+        rows.append((ns, lab, nw, cat))
+    if rows:
+        profitable_states4 += 1
+        profitable_cases4.append((s, w, rows))
+
+total_edges = sum(edge_counts.values())
+print(f'  A wins outright             : {a_wins4}')
+print(f'  A does not win              : {a_loses4}')
+print(f'  States w/ >=1 profitable single-step deviation : {profitable_states4}')
+print(f'  Total profitable (state, deviation) edges      : {total_edges}')
+
+print(f'\n  ── breakdown by move type ────────────────────────────────────────────')
+if total_edges:
+    print(f'    flip the weakest matchup (rank {M4-1})            : '
+          f'{edge_counts["flip_weakest"]:>6}  ({edge_counts["flip_weakest"]/total_edges:6.1%})')
+    print(f'    swap the two weakest matchups (ranks {M4-2},{M4-1})  : '
+          f'{edge_counts["swap_two_weakest"]:>6}  ({edge_counts["swap_two_weakest"]/total_edges:6.1%})')
+    print(f'    all other single-step moves                    : '
+          f'{edge_counts["other"]:>6}  ({edge_counts["other"]/total_edges:6.1%})')
+
+if profitable_states4 <= CASE_DISPLAY_THRESHOLD:
+    print(f'\n  ── full per-case listing ─────────────────────────────────────────────')
+    for s, w, rows in profitable_cases4:
+        print(f'  ┌ {cycle_tag_g(s, PAIRS4, CANDS4)} {desc_g(s, PAIRS4, CANDS4):<58}  winner = {w}')
+        for ns, lab, nw, cat in rows:
+            star = '★' if nw == 'A' else '·'
+            print(f'  │    {star} {cycle_tag_g(ns, PAIRS4, CANDS4)} {lab:<9} [{cat:<16}] → '
+                  f'{desc_g(ns, PAIRS4, CANDS4):<54} → {nw}')
+        print()
+else:
+    print(f'\n  ({profitable_states4} profitable states — too many to list individually; '
+          f'counts above only. Raise CASE_DISPLAY_THRESHOLD to force a full dump.)')
+
+print('═' * W)

@@ -20,6 +20,7 @@ let showAllNodes = true;
 let showAllEdges = true;
 let showMinimalEdges = true;
 let hoveredId = null;
+let ctrlDown = false, shiftDown = false; // hover-direction modifiers
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 let nodes = [];
@@ -388,6 +389,8 @@ function onMouseMove(ev) {
   const rect = renderer.domElement.getBoundingClientRect();
   mouse.x = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
   mouse.y = -((ev.clientY - rect.top) / rect.height) * 2 + 1;
+  ctrlDown = ev.ctrlKey;
+  shiftDown = ev.shiftKey;
   raycaster.setFromCamera(mouse, camera);
   const intersects = raycaster.intersectObjects(nodeGroup.children);
   if (intersects.length) {
@@ -412,25 +415,62 @@ function onClick(ev) {
   window.location.href = `index.html#${hash}`;
 }
 
+// Modifiers change the traversal direction while hovering a node:
+//   (none)       → forward: every node reachable by deviating away from this one
+//   Ctrl         → incoming: only the nodes with a direct edge into this one
+//   Ctrl+Shift   → ancestors: every node that can eventually reach this one
+function currentMode() {
+  return ctrlDown ? (shiftDown ? 'ancestors' : 'incoming') : 'descendants';
+}
+
+// Build both directions of adjacency from an edge pool so hover can walk either way.
+function buildAdjacency(edgePool) {
+  const out = new Map(), inn = new Map();
+  for (const l of edgePool) {
+    if (!out.has(l.source.id)) out.set(l.source.id, []);
+    out.get(l.source.id).push(l);
+    if (!inn.has(l.target.id)) inn.set(l.target.id, []);
+    inn.get(l.target.id).push(l);
+  }
+  return { out, inn };
+}
+
+// BFS over an adjacency map, following each edge toward `endpoint` ('target' or 'source').
+function bfsReachable(startId, adj, endpoint) {
+  const reachable = new Set([startId]);
+  let frontier = [startId];
+  while (frontier.length) {
+    const next = [];
+    for (const id of frontier) {
+      for (const l of (adj.get(id) || [])) {
+        const nid = l[endpoint].id;
+        if (!reachable.has(nid)) { reachable.add(nid); next.push(nid); }
+      }
+    }
+    frontier = next;
+  }
+  return reachable;
+}
+
 function applyHover(id) {
   hoveredId = id;
   const node = nodes.find(n => n.id === id);
   if (!node) return;
 
-  const nodeById = new Map(nodes.map(n => [n.id, n]));
-  const reachable = new Set([id]);
-  const queue = [node];
-  while (queue.length) {
-    const curr = queue.shift();
-    const neighboursList = showAllEdges
-      ? curr.data.minimalNeighbours
-      : (showMinimalEdges ? curr.data.minimalProfitableDeviations : curr.data.multiStepProfitableDeviations);
-    for (const nb of neighboursList) {
-      if (!reachable.has(nb.key) && nodeById.has(nb.key)) {
-        reachable.add(nb.key);
-        queue.push(nodeById.get(nb.key));
-      }
-    }
+  const mode = currentMode();
+  const edgePool = showAllEdges ? allLinks : profitLinks;
+  const { out, inn } = buildAdjacency(edgePool);
+
+  let reachable, hoverEdges;
+  if (mode === 'incoming') {
+    hoverEdges = inn.get(id) || [];
+    reachable = new Set([id, ...hoverEdges.map(l => l.source.id)]);
+  } else if (mode === 'ancestors') {
+    reachable = bfsReachable(id, inn, 'source');
+    hoverEdges = edgePool.filter(l => reachable.has(l.source.id) && reachable.has(l.target.id));
+  } else {
+    reachable = bfsReachable(id, out, 'target');
+    hoverEdges = edgePool.filter(l => reachable.has(l.source.id) && reachable.has(l.target.id));
   }
 
   for (const [nid, mesh] of nodeMeshes) {
@@ -441,8 +481,8 @@ function applyHover(id) {
   if (allEdgeGroup.userData.material) allEdgeGroup.userData.material.opacity = 0;
   profitEdgeGroup.children.forEach(c => { c.material.opacity = 0.05; });
 
-  rebuildHoverEdges(reachable);
-  showTooltip(node);
+  rebuildHoverEdges(hoverEdges);
+  showTooltip(node, mode);
 }
 
 function clearHover() {
@@ -458,16 +498,13 @@ function clearHover() {
   hideTooltip();
 }
 
-function rebuildHoverEdges(reachable) {
+function rebuildHoverEdges(edgeList) {
   hoverEdgeGroup.clear();
-  const edgePool = showAllEdges ? allLinks : profitLinks;
   const positions = [], colors = [];
-  for (const l of edgePool) {
-    if (reachable.has(l.source.id) && reachable.has(l.target.id)) {
-      const c = new THREE.Color(l.w === 'A' ? PROFIT_COLOR.A : l.w === 'B' ? PROFIT_COLOR.B : '#94a3b8');
-      positions.push(l.source.px, l.source.y, l.source.pz, l.target.px, l.target.y, l.target.pz);
-      colors.push(c.r, c.g, c.b, c.r, c.g, c.b);
-    }
+  for (const l of edgeList) {
+    const c = new THREE.Color(l.w === 'A' ? PROFIT_COLOR.A : l.w === 'B' ? PROFIT_COLOR.B : '#94a3b8');
+    positions.push(l.source.px, l.source.y, l.source.pz, l.target.px, l.target.y, l.target.pz);
+    colors.push(c.r, c.g, c.b, c.r, c.g, c.b);
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
@@ -477,8 +514,16 @@ function rebuildHoverEdges(reachable) {
 }
 
 // ── Tooltip (same fixed bottom-right panel/markup as graph.js) ───────────────
-function showTooltip(d) {
+const MODE_LABEL = {
+  incoming: '← direct predecessors <span style="opacity:.6">(Ctrl)</span>',
+  ancestors: '⇐ all ancestors <span style="opacity:.6">(Ctrl+Shift)</span>',
+};
+
+function showTooltip(d, mode = 'descendants') {
   const w = d.winner;
+  const modeHtml = MODE_LABEL[mode]
+    ? `<div style="color:var(--accent);font-size:0.72rem;font-weight:600;margin-bottom:0.4rem">${MODE_LABEL[mode]}</div>`
+    : '';
 
   const byOutcome = { A: {}, B: {}, C: {} };
   for (const nb of d.data.minimalNeighbours) {
@@ -510,6 +555,7 @@ function showTooltip(d) {
   }
 
   tooltip.innerHTML = `
+    ${modeHtml}
     <div class="tt-desc">${d.data.desc}</div>
     <div class="tt-winner" style="color:${COLOR[w]}">winner: ${w} <span style="color:var(--muted);font-weight:400;font-size:0.7rem">${d.data.isCycle ? '[cycle]' : '[CW]'}</span></div>
     <div style="color:var(--muted);font-size:0.75rem;margin-bottom:0.4rem">height: ${d.height}</div>
@@ -520,6 +566,27 @@ function showTooltip(d) {
 }
 
 function hideTooltip() { tooltip.style.display = 'none'; }
+
+// ── Hover-direction modifier keys ───────────────────────────────────────────────
+// Re-apply hover in place when Ctrl/Shift are pressed or released while a node is
+// already hovered — mousemove alone only re-evaluates when the pointer crosses
+// onto a different node.
+function onModifierChange(ev) {
+  if (ev.key !== 'Control' && ev.key !== 'Shift') return;
+  const nextCtrl = ev.ctrlKey, nextShift = ev.shiftKey;
+  if (nextCtrl === ctrlDown && nextShift === shiftDown) return;
+  ctrlDown = nextCtrl;
+  shiftDown = nextShift;
+  if (hoveredId) applyHover(hoveredId);
+}
+window.addEventListener('keydown', onModifierChange);
+window.addEventListener('keyup', onModifierChange);
+window.addEventListener('blur', () => {
+  if (!ctrlDown && !shiftDown) return;
+  ctrlDown = false;
+  shiftDown = false;
+  if (hoveredId) applyHover(hoveredId);
+});
 
 // ── Toolbar ───────────────────────────────────────────────────────────────────
 document.getElementById('toggle-nodes-btn').addEventListener('click', function() {

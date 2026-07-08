@@ -2,7 +2,7 @@
 
 import {
   MATCHUPS, PAIRS, SINCERE, PREF,
-  winner, isCycle, desc, stateKey,
+  winner, isCycle, stateKey,
   allStates, stateData,
   encodeState,
 } from './minimax.js';

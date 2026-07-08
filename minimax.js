@@ -29,11 +29,41 @@ function isCycle(state) {
   return !Object.values(wins).some(n => n === 2);
 }
 
-function desc(state) {
-  return state.map(([mid, d]) => {
+// ── Display notation ─────────────────────────────────────────────────────
+// Single source of truth for how a state is rendered as text: ⟨weakest ∣
+// middle ∣ strongest⟩, each term written loser-implied as winner→loser (e.g.
+// A→C means "A beats C"), listed in INCREASING strength (state itself is
+// stored strongest-first, rank 1 → rank 3, so this reverses it). To change
+// the notation later — symbols, ordering, bolding rule — this is the only
+// place that needs to change; every caller renders through formatState().
+const NOTATION = { open: '⟨', close: '⟩', arrow: '→', sep: ' ∣ ' };
+
+// The winner is made visually legible by bolding it in place:
+//  - Condorcet winner: bold every appearance of it (it only ever appears as
+//    the winning side, since it beats both opponents).
+//  - Cycle: bold only its appearance as the LOSER of the weakest matchup
+//    (the first term below) — that loss is *why* it wins under minimax.
+function formatState(state, { bold = true } = {}) {
+  const w = winner(state);
+  const cycle = isCycle(state);
+
+  const terms = [...state].reverse().map(([mid, d]) => {
     const [a, b] = PAIRS[mid];
-    return d === +1 ? `(${a}>${b})` : `(${b}>${a})`;
-  }).join(' > ');
+    return d === +1 ? { winner: a, loser: b } : { winner: b, loser: a };
+  });
+
+  const renderLetter = (letter, highlight) => {
+    if (!highlight || !bold) return letter;
+    return `<b class="cand-${letter.toLowerCase()}">${letter}</b>`;
+  };
+
+  const rendered = terms.map((t, i) => {
+    const highlightWinnerSide = !cycle && t.winner === w;
+    const highlightLoserSide = cycle && i === 0 && t.loser === w;
+    return `${renderLetter(t.winner, highlightWinnerSide)}${NOTATION.arrow}${renderLetter(t.loser, highlightLoserSide)}`;
+  });
+
+  return `${NOTATION.open}${rendered.join(NOTATION.sep)}${NOTATION.close}`;
 }
 
 function stateKey(state) {
@@ -208,7 +238,7 @@ for (const s of allStates) {
     key,
     winner: w,
     isCycle: cycle,
-    desc: desc(s),
+    desc: formatState(s),
     allNeighbours,
     devByMid,
     profitableDeviations,
@@ -317,7 +347,7 @@ const SINCERE_STATE = [['AB', +1], ['AC', +1], ['BC', +1]];
 
 export {
   MATCHUPS, PAIRS, SINCERE, PREF,
-  winner, isCycle, desc, stateKey,
+  winner, isCycle, formatState, stateKey,
   neighbours, allStates, stateData, stateMap,
   profitableStates,
   encodeState, decodeState, getStateData,

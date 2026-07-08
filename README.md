@@ -9,6 +9,12 @@ Given a ranked list of three directed pairwise matchups (rank 1 = largest margin
 1. If a Condorcet winner exists (wins both their matchups), elect them.
 2. If there is a three-way cycle, elect the **loser of the rank-3 matchup** — the candidate whose worst defeat is smallest.
 
+## Notation
+
+A state is written ⟨weakest ∣ middle ∣ strongest⟩ — matchups in **increasing** margin order, each term `X→Y` meaning "X beats Y". The winner is bolded in place: every appearance of a Condorcet winner (it only ever appears as the beating side), or just its one appearance as the *loser* of the weakest matchup when it wins a cycle — visually showing which rule picked it. E.g. ⟨B→**C** ∣ A→B ∣ C→A⟩ is a cycle decided by C's narrowest loss (to B); ⟨**A**→C ∣ B→C ∣ **A**→B⟩ is a plain Condorcet win for A.
+
+This is the only notation used across the site; `formatState()` in `minimax.js` is the single place that renders it, so changing the symbols or bolding rule later only means editing that one function.
+
 ## Simple manipulations
 
 A single step ("simple manipulation") is exactly one of: swap matchup-rank 1&2, swap matchup-rank 2&3, or flip the direction of the rank-3 (smallest) matchup.
@@ -17,9 +23,9 @@ A single step ("simple manipulation") is exactly one of: swap matchup-rank 1&2, 
 
 Of 48 possible states (8 direction combinations × 6 rank orderings), A wins in 16 states. Of the remaining 32, exactly **2** have a profitable single-step deviation:
 
-**Archetype 1 — Betray your favorite (lie B>A):** `(C>A) > (A>B) > (B>C)` [C wins] — a few voters lying B>A weakens A>B by one rank, reaching `(C>A) > (B>C) > (A>B)`, improving the outcome to B.
+**Archetype 1 — Betray your favorite (lie B>A):** ⟨B→**C** ∣ A→B ∣ C→A⟩ [C wins] — a few voters lying B>A weakens A>B by one rank, reaching ⟨A→**B** ∣ B→C ∣ C→A⟩, improving the outcome to B.
 
-**Archetype 2 — Bury your second choice (lie C>B):** `(A>C) > (B>A) > (C>B)` [B wins] — more voters lying C>B pushes that matchup up one rank, reaching `(A>C) > (C>B) > (B>A)`, improving the outcome to A.
+**Archetype 2 — Bury your second choice (lie C>B):** ⟨C→**B** ∣ B→A ∣ A→C⟩ [B wins] — more voters lying C>B pushes that matchup up one rank, reaching ⟨B→**A** ∣ C→B ∣ A→C⟩, improving the outcome to A.
 
 ## Multi-step deviations can help
 

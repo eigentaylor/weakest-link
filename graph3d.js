@@ -13,7 +13,7 @@ const PROFIT_COLOR = { A: '#34d399', B: '#fde68a' };
 // so the 7 structural layers stay visually distinct while a profitable
 // deviation to a better winner still pops relative to its structural peers.
 const LAYER_SPACING = 15;
-const BUMP_SCALE = 6;
+const BUMP_SCALE = 0;
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let showAllNodes = true;

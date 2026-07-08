@@ -2,7 +2,7 @@
 
 import {
   MATCHUPS, PAIRS, SINCERE, PREF,
-  winner, isCycle, desc, stateKey,
+  winner, isCycle, formatState, stateKey,
   neighbours, allStates, stateData,
   encodeState, decodeState, getStateData,
   SINCERE_STATE,
@@ -22,23 +22,25 @@ function getState() {
 let dragSrc = null;
 
 // ── Shortcuts data ────────────────────────────────────────────────────────────
+// Items carry only ranks/dirs — the on-screen label is always rendered
+// through formatState() so it can never drift out of sync with the notation.
 const SHORTCUTS = [
   {
     archetype: 1,
     label: 'Archetype 1 — Betray your favorite (C wins the cycle)',
     items: [
-      { desc: '(A>B) > (C>A) > (B>C)', ranks: ['AB','AC','BC'], dirs: {AB:+1, AC:-1, BC:+1} },
-      { desc: '(C>A) > (A>B) > (B>C)', ranks: ['AC','AB','BC'], dirs: {AB:+1, AC:-1, BC:+1} },
+      { ranks: ['AB','AC','BC'], dirs: {AB:+1, AC:-1, BC:+1} },
+      { ranks: ['AC','AB','BC'], dirs: {AB:+1, AC:-1, BC:+1} },
     ],
   },
   {
     archetype: 2,
     label: 'Archetype 2 — Bury your second choice (B wins, A>C margin dominates)',
     items: [
-      { desc: '(A>C) > (B>A) > (B>C)', ranks: ['AC','AB','BC'], dirs: {AB:-1, AC:+1, BC:+1} },
-      { desc: '(A>C) > (B>C) > (B>A)', ranks: ['AC','BC','AB'], dirs: {AB:-1, AC:+1, BC:+1} },
-      { desc: '(B>C) > (A>C) > (B>A)', ranks: ['BC','AC','AB'], dirs: {AB:-1, AC:+1, BC:+1} },
-      { desc: '(A>C) > (B>A) > (C>B)  [push variant]', ranks: ['AC','AB','BC'], dirs: {AB:-1, AC:+1, BC:-1} },
+      { ranks: ['AC','AB','BC'], dirs: {AB:-1, AC:+1, BC:+1} },
+      { ranks: ['AC','BC','AB'], dirs: {AB:-1, AC:+1, BC:+1} },
+      { ranks: ['BC','AC','AB'], dirs: {AB:-1, AC:+1, BC:+1} },
+      { ranks: ['AC','AB','BC'], dirs: {AB:-1, AC:+1, BC:-1}, suffix: '(push variant)' },
     ],
   },
 ];
@@ -156,11 +158,11 @@ function renderStatePanel() {
   const state = getState();
   const w = winner(state);
   const cycle = isCycle(state);
-  const stateDesc = desc(state);
+  const stateDesc = formatState(state);
 
   document.getElementById('winner-display').textContent = w;
   document.getElementById('winner-display').className = `winner-display ${candClass(w)}`;
-  document.getElementById('state-desc').textContent = stateDesc;
+  document.getElementById('state-desc').innerHTML = stateDesc;
   document.getElementById('state-cycle').textContent = cycle ? '[cycle]' : `[CW: ${w}]`;
 }
 
@@ -211,7 +213,7 @@ function renderDeviationPanel() {
           <span class="dev-label">${dev.label}</span>
           <span class="dev-kind kind-${dev.kind}">${dev.kind}</span>
         </span>
-        <span class="dev-desc">${desc(dev.newState)}</span>
+        <span class="dev-desc">${formatState(dev.newState)}</span>
         <span class="dev-winner ${candColor(nw)}">${nw}</span>
         <span>${symbol} ${tagHtml}</span>
       </div>`;
@@ -246,7 +248,8 @@ function renderShortcuts() {
     group.items.forEach(item => {
       const btn = document.createElement('button');
       btn.className = 'shortcut-btn';
-      btn.textContent = item.desc;
+      const itemState = item.ranks.map(m => [m, item.dirs[m]]);
+      btn.innerHTML = formatState(itemState) + (item.suffix ? `  ${item.suffix}` : '');
       btn.addEventListener('click', () => {
         currentRanks = [...item.ranks];
         currentDirs = { ...item.dirs };

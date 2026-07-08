@@ -1,0 +1,224 @@
+Weakest Link Strategic-Voting Graph
+=====================================
+
+Each node is a ranking state (rank-1 > rank-2 > rank-3 matchup, with the
+sincere/insincere direction of each matchup) together with its outcome
+(winner: A, B, or C). Edges are single-step deviations (one voter lie
+changing rank position or flipping a matchup), labeled with the lie
+being told, the move kind (reorder vs flip), and the resulting outcome.
+
+NODE AB-,AC-,BC-  [(B>A) > (C>A) > (C>B)]  outcome: C (CW)
+  -> AC-,AB-,BC-  (lie C>A, reorder)  outcome: C
+  -> AB-,BC-,AC-  (lie C>B, reorder)  outcome: C
+
+NODE AB-,AC-,BC+  [(B>A) > (C>A) > (B>C)]  outcome: B (CW)
+  -> AC-,AB-,BC+  (lie C>A, reorder)  outcome: B
+  -> AB-,AC-,BC-  (lie C>B, flip)  outcome: C
+
+NODE AB-,AC+,BC-  [(B>A) > (A>C) > (C>B)]  outcome: B (cycle)
+  -> AB-,BC-,AC+  (lie C>A, reorder)  outcome: C
+  -> AB-,BC-,AC+  (lie C>B, reorder)  outcome: C
+
+NODE AB-,AC+,BC+  [(B>A) > (A>C) > (B>C)]  outcome: B (CW)
+  -> AB-,BC+,AC+  (lie C>A, reorder)  outcome: B
+  -> AB-,AC+,BC-  (lie C>B, flip)  outcome: B
+
+NODE AB-,BC-,AC-  [(B>A) > (C>B) > (C>A)]  outcome: C (CW)
+  -> BC-,AB-,AC-  (lie C>B, reorder)  outcome: C
+  -> AB-,AC-,BC-  (lie C>A, reorder)  outcome: C
+
+NODE AB-,BC-,AC+  [(B>A) > (C>B) > (A>C)]  outcome: C (cycle)
+  -> BC-,AB-,AC+  (lie C>B, reorder)  outcome: C
+  -> AB-,BC-,AC-  (lie C>A, flip)  outcome: C
+
+NODE AB-,BC+,AC-  [(B>A) > (B>C) > (C>A)]  outcome: B (CW)
+  -> AB-,AC-,BC+  (lie C>B, reorder)  outcome: B
+  -> AB-,AC-,BC+  (lie C>A, reorder)  outcome: B
+
+NODE AB-,BC+,AC+  [(B>A) > (B>C) > (A>C)]  outcome: B (CW)
+  -> AB-,AC+,BC+  (lie C>B, reorder)  outcome: B
+  -> AB-,BC+,AC-  (lie C>A, flip)  outcome: B
+
+NODE AB+,AC-,BC-  [(A>B) > (C>A) > (C>B)]  outcome: C (CW)
+  -> AC-,AB+,BC-  (lie B>A, reorder)  outcome: C
+  -> AC-,AB+,BC-  (lie C>A, reorder)  outcome: C
+  -> AB+,BC-,AC-  (lie C>B, reorder)  outcome: C
+
+NODE AB+,AC-,BC+  [(A>B) > (C>A) > (B>C)]  outcome: C (cycle)
+  -> AC-,AB+,BC+  (lie B>A, reorder)  outcome: C
+  -> AC-,AB+,BC+  (lie C>A, reorder)  outcome: C
+  -> AB+,AC-,BC-  (lie C>B, flip)  outcome: C
+
+NODE AB+,AC+,BC-  [(A>B) > (A>C) > (C>B)]  outcome: A (CW)
+  -> AC+,AB+,BC-  (lie B>A, reorder)  outcome: A
+  -> AB+,BC-,AC+  (lie C>A, reorder)  outcome: A
+  -> AB+,BC-,AC+  (lie C>B, reorder)  outcome: A
+
+NODE AB+,AC+,BC+  [(A>B) > (A>C) > (B>C)]  outcome: A (CW)
+  -> AC+,AB+,BC+  (lie B>A, reorder)  outcome: A
+  -> AB+,BC+,AC+  (lie C>A, reorder)  outcome: A
+  -> AB+,AC+,BC-  (lie C>B, flip)  outcome: A
+
+NODE AB+,BC-,AC-  [(A>B) > (C>B) > (C>A)]  outcome: C (CW)
+  -> BC-,AB+,AC-  (lie B>A, reorder)  outcome: C
+  -> BC-,AB+,AC-  (lie C>B, reorder)  outcome: C
+  -> AB+,AC-,BC-  (lie C>A, reorder)  outcome: C
+
+NODE AB+,BC-,AC+  [(A>B) > (C>B) > (A>C)]  outcome: A (CW)
+  -> BC-,AB+,AC+  (lie B>A, reorder)  outcome: A
+  -> BC-,AB+,AC+  (lie C>B, reorder)  outcome: A
+  -> AB+,BC-,AC-  (lie C>A, flip)  outcome: C
+
+NODE AB+,BC+,AC-  [(A>B) > (B>C) > (C>A)]  outcome: A (cycle)
+  -> BC+,AB+,AC-  (lie B>A, reorder)  outcome: A
+  -> AB+,AC-,BC+  (lie C>B, reorder)  outcome: C
+  -> AB+,AC-,BC+  (lie C>A, reorder)  outcome: C
+
+NODE AB+,BC+,AC+  [(A>B) > (B>C) > (A>C)]  outcome: A (CW)
+  -> BC+,AB+,AC+  (lie B>A, reorder)  outcome: A
+  -> AB+,AC+,BC+  (lie C>B, reorder)  outcome: A
+  -> AB+,BC+,AC-  (lie C>A, flip)  outcome: A
+
+NODE AC-,AB-,BC-  [(C>A) > (B>A) > (C>B)]  outcome: C (CW)
+  -> AB-,AC-,BC-  (lie B>A, reorder)  outcome: C
+  -> AC-,BC-,AB-  (lie C>B, reorder)  outcome: C
+
+NODE AC-,AB-,BC+  [(C>A) > (B>A) > (B>C)]  outcome: B (CW)
+  -> AB-,AC-,BC+  (lie B>A, reorder)  outcome: B
+  -> AC-,AB-,BC-  (lie C>B, flip)  outcome: C
+
+NODE AC-,AB+,BC-  [(C>A) > (A>B) > (C>B)]  outcome: C (CW)
+  -> AC-,BC-,AB+  (lie B>A, reorder)  outcome: C
+  -> AC-,BC-,AB+  (lie C>B, reorder)  outcome: C
+
+NODE AC-,AB+,BC+  [(C>A) > (A>B) > (B>C)]  outcome: C (cycle)
+  -> AC-,BC+,AB+  (lie B>A, reorder)  outcome: B  [profitable: yes]
+  -> AC-,AB+,BC-  (lie C>B, flip)  outcome: C
+
+NODE AC-,BC-,AB-  [(C>A) > (C>B) > (B>A)]  outcome: C (CW)
+  -> BC-,AC-,AB-  (lie C>B, reorder)  outcome: C
+  -> AC-,AB-,BC-  (lie B>A, reorder)  outcome: C
+
+NODE AC-,BC-,AB+  [(C>A) > (C>B) > (A>B)]  outcome: C (CW)
+  -> BC-,AC-,AB+  (lie C>B, reorder)  outcome: C
+  -> AC-,BC-,AB-  (lie B>A, flip)  outcome: C
+
+NODE AC-,BC+,AB-  [(C>A) > (B>C) > (B>A)]  outcome: B (CW)
+  -> AC-,AB-,BC+  (lie C>B, reorder)  outcome: B
+  -> AC-,AB-,BC+  (lie B>A, reorder)  outcome: B
+
+NODE AC-,BC+,AB+  [(C>A) > (B>C) > (A>B)]  outcome: B (cycle)
+  -> AC-,AB+,BC+  (lie C>B, reorder)  outcome: C
+  -> AC-,BC+,AB-  (lie B>A, flip)  outcome: B
+
+NODE AC+,AB-,BC-  [(A>C) > (B>A) > (C>B)]  outcome: B (cycle)
+  -> AB-,AC+,BC-  (lie C>A, reorder)  outcome: B
+  -> AB-,AC+,BC-  (lie B>A, reorder)  outcome: B
+  -> AC+,BC-,AB-  (lie C>B, reorder)  outcome: A  [profitable: yes]
+
+NODE AC+,AB-,BC+  [(A>C) > (B>A) > (B>C)]  outcome: B (CW)
+  -> AB-,AC+,BC+  (lie C>A, reorder)  outcome: B
+  -> AB-,AC+,BC+  (lie B>A, reorder)  outcome: B
+  -> AC+,AB-,BC-  (lie C>B, flip)  outcome: B
+
+NODE AC+,AB+,BC-  [(A>C) > (A>B) > (C>B)]  outcome: A (CW)
+  -> AB+,AC+,BC-  (lie C>A, reorder)  outcome: A
+  -> AC+,BC-,AB+  (lie B>A, reorder)  outcome: A
+  -> AC+,BC-,AB+  (lie C>B, reorder)  outcome: A
+
+NODE AC+,AB+,BC+  [(A>C) > (A>B) > (B>C)]  outcome: A (CW)
+  -> AB+,AC+,BC+  (lie C>A, reorder)  outcome: A
+  -> AC+,BC+,AB+  (lie B>A, reorder)  outcome: A
+  -> AC+,AB+,BC-  (lie C>B, flip)  outcome: A
+
+NODE AC+,BC-,AB-  [(A>C) > (C>B) > (B>A)]  outcome: A (cycle)
+  -> BC-,AC+,AB-  (lie C>A, reorder)  outcome: A
+  -> BC-,AC+,AB-  (lie C>B, reorder)  outcome: A
+  -> AC+,AB-,BC-  (lie B>A, reorder)  outcome: B
+
+NODE AC+,BC-,AB+  [(A>C) > (C>B) > (A>B)]  outcome: A (CW)
+  -> BC-,AC+,AB+  (lie C>A, reorder)  outcome: A
+  -> BC-,AC+,AB+  (lie C>B, reorder)  outcome: A
+  -> AC+,BC-,AB-  (lie B>A, flip)  outcome: A
+
+NODE AC+,BC+,AB-  [(A>C) > (B>C) > (B>A)]  outcome: B (CW)
+  -> BC+,AC+,AB-  (lie C>A, reorder)  outcome: B
+  -> AC+,AB-,BC+  (lie C>B, reorder)  outcome: B
+  -> AC+,AB-,BC+  (lie B>A, reorder)  outcome: B
+
+NODE AC+,BC+,AB+  [(A>C) > (B>C) > (A>B)]  outcome: A (CW)
+  -> BC+,AC+,AB+  (lie C>A, reorder)  outcome: A
+  -> AC+,AB+,BC+  (lie C>B, reorder)  outcome: A
+  -> AC+,BC+,AB-  (lie B>A, flip)  outcome: B
+
+NODE BC-,AB-,AC-  [(C>B) > (B>A) > (C>A)]  outcome: C (CW)
+  -> AB-,BC-,AC-  (lie B>A, reorder)  outcome: C
+  -> BC-,AC-,AB-  (lie C>A, reorder)  outcome: C
+
+NODE BC-,AB-,AC+  [(C>B) > (B>A) > (A>C)]  outcome: C (cycle)
+  -> AB-,BC-,AC+  (lie B>A, reorder)  outcome: C
+  -> BC-,AB-,AC-  (lie C>A, flip)  outcome: C
+
+NODE BC-,AB+,AC-  [(C>B) > (A>B) > (C>A)]  outcome: C (CW)
+  -> BC-,AC-,AB+  (lie B>A, reorder)  outcome: C
+  -> BC-,AC-,AB+  (lie C>A, reorder)  outcome: C
+
+NODE BC-,AB+,AC+  [(C>B) > (A>B) > (A>C)]  outcome: A (CW)
+  -> BC-,AC+,AB+  (lie B>A, reorder)  outcome: A
+  -> BC-,AB+,AC-  (lie C>A, flip)  outcome: C
+
+NODE BC-,AC-,AB-  [(C>B) > (C>A) > (B>A)]  outcome: C (CW)
+  -> AC-,BC-,AB-  (lie C>A, reorder)  outcome: C
+  -> BC-,AB-,AC-  (lie B>A, reorder)  outcome: C
+
+NODE BC-,AC-,AB+  [(C>B) > (C>A) > (A>B)]  outcome: C (CW)
+  -> AC-,BC-,AB+  (lie C>A, reorder)  outcome: C
+  -> BC-,AC-,AB-  (lie B>A, flip)  outcome: C
+
+NODE BC-,AC+,AB-  [(C>B) > (A>C) > (B>A)]  outcome: A (cycle)
+  -> BC-,AB-,AC+  (lie C>A, reorder)  outcome: C
+  -> BC-,AB-,AC+  (lie B>A, reorder)  outcome: C
+
+NODE BC-,AC+,AB+  [(C>B) > (A>C) > (A>B)]  outcome: A (CW)
+  -> BC-,AB+,AC+  (lie C>A, reorder)  outcome: A
+  -> BC-,AC+,AB-  (lie B>A, flip)  outcome: A
+
+NODE BC+,AB-,AC-  [(B>C) > (B>A) > (C>A)]  outcome: B (CW)
+  -> AB-,BC+,AC-  (lie C>B, reorder)  outcome: B
+  -> AB-,BC+,AC-  (lie B>A, reorder)  outcome: B
+  -> BC+,AC-,AB-  (lie C>A, reorder)  outcome: B
+
+NODE BC+,AB-,AC+  [(B>C) > (B>A) > (A>C)]  outcome: B (CW)
+  -> AB-,BC+,AC+  (lie C>B, reorder)  outcome: B
+  -> AB-,BC+,AC+  (lie B>A, reorder)  outcome: B
+  -> BC+,AB-,AC-  (lie C>A, flip)  outcome: B
+
+NODE BC+,AB+,AC-  [(B>C) > (A>B) > (C>A)]  outcome: A (cycle)
+  -> AB+,BC+,AC-  (lie C>B, reorder)  outcome: A
+  -> BC+,AC-,AB+  (lie B>A, reorder)  outcome: B
+  -> BC+,AC-,AB+  (lie C>A, reorder)  outcome: B
+
+NODE BC+,AB+,AC+  [(B>C) > (A>B) > (A>C)]  outcome: A (CW)
+  -> AB+,BC+,AC+  (lie C>B, reorder)  outcome: A
+  -> BC+,AC+,AB+  (lie B>A, reorder)  outcome: A
+  -> BC+,AB+,AC-  (lie C>A, flip)  outcome: A
+
+NODE BC+,AC-,AB-  [(B>C) > (C>A) > (B>A)]  outcome: B (CW)
+  -> AC-,BC+,AB-  (lie C>B, reorder)  outcome: B
+  -> AC-,BC+,AB-  (lie C>A, reorder)  outcome: B
+  -> BC+,AB-,AC-  (lie B>A, reorder)  outcome: B
+
+NODE BC+,AC-,AB+  [(B>C) > (C>A) > (A>B)]  outcome: B (cycle)
+  -> AC-,BC+,AB+  (lie C>B, reorder)  outcome: B
+  -> AC-,BC+,AB+  (lie C>A, reorder)  outcome: B
+  -> BC+,AC-,AB-  (lie B>A, flip)  outcome: B
+
+NODE BC+,AC+,AB-  [(B>C) > (A>C) > (B>A)]  outcome: B (CW)
+  -> AC+,BC+,AB-  (lie C>B, reorder)  outcome: B
+  -> BC+,AB-,AC+  (lie C>A, reorder)  outcome: B
+  -> BC+,AB-,AC+  (lie B>A, reorder)  outcome: B
+
+NODE BC+,AC+,AB+  [(B>C) > (A>C) > (A>B)]  outcome: A (CW)
+  -> AC+,BC+,AB+  (lie C>B, reorder)  outcome: A
+  -> BC+,AB+,AC+  (lie C>A, reorder)  outcome: A
+  -> BC+,AC+,AB-  (lie B>A, flip)  outcome: B

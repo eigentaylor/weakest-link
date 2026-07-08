@@ -423,12 +423,13 @@ print('═' * W)
 #  (first = most preferred); "sincere" direction on every matchup is the
 #  more-preferred candidate winning.
 #
-#  Winner rule (true minimax, not just the 3-candidate shortcut): a
-#  candidate's "worst loss" is their smallest-rank (= largest-margin) defeat.
-#  Condorcet winner (no losses) is elected outright; otherwise the winner is
-#  whoever's worst loss is the LEAST damaging (largest rank / smallest
-#  margin). For N=3 this collapses to the original "loser of the last
-#  matchup" rule, verified above (0 mismatches over all 48 states).
+#  Winner rule: Condorcet winner (beats all n-1 others) is elected outright;
+#  otherwise f(P) = lose(P_1) — the LOSER of the single globally weakest
+#  (smallest-margin) matchup, full stop. This is the site's actual general
+#  definition (not per-candidate worst-defeat comparison, i.e. NOT textbook
+#  Simpson-Kramer minimax for n>3 — the two coincide only at n=3, which is
+#  why the n=3 report above can't distinguish them). It is a direct,
+#  structural generalization of the original 3-candidate winner().
 # ═══════════════════════════════════════════════════════════════════════════
 def build_election(candidates):
     pref = {c: len(candidates) - 1 - i for i, c in enumerate(candidates)}
@@ -440,40 +441,41 @@ def build_election(candidates):
     sincere = {mid: +1 for mid in matchups}   # +1 = more-preferred side wins
     return matchups, pairs, sincere, pref
 
-def worst_loss_ranks(state, pairs, candidates):
-    worst = {c: None for c in candidates}
-    for rank, (mid, d) in enumerate(state):
+def condorcet_winner(state, pairs, candidates):
+    n = len(candidates)
+    wins = {c: 0 for c in candidates}
+    for mid, d in state:
         a, b = pairs[mid]
-        loser = b if d == +1 else a
-        if worst[loser] is None:            # first time seen = smallest rank = worst loss
-            worst[loser] = rank
-    return worst
+        wins[a if d == +1 else b] += 1
+    for c, w in wins.items():
+        if w == n - 1:
+            return c
+    return None
 
 def winner_g(state, pairs, candidates):
-    worst = worst_loss_ranks(state, pairs, candidates)
-    for c in candidates:
-        if worst[c] is None:
-            return c                        # Condorcet winner
-    return max(candidates, key=lambda c: worst[c])
+    cw = condorcet_winner(state, pairs, candidates)
+    if cw is not None:
+        return cw
+    lm, ld = state[-1]                      # weakest (last-rank) matchup
+    a, b = pairs[lm]
+    return b if ld == +1 else a              # its loser
 
 def desc_g(state, pairs, candidates):
     w = winner_g(state, pairs, candidates)
-    worst = worst_loss_ranks(state, pairs, candidates)
-    w_loss_rank = worst[w]                  # None if w is a Condorcet winner
+    cycle = condorcet_winner(state, pairs, candidates) is None
     terms = []
-    for rank, (mid, d) in enumerate(state):
+    for i, (mid, d) in enumerate(reversed(state)):
         a, b = pairs[mid]
         win_l, lose_l = (a, b) if d == +1 else (b, a)
-        if w_loss_rank is None and win_l == w:
+        if not cycle and win_l == w:
             win_l = f'**{win_l}**'
-        elif w_loss_rank is not None and rank == w_loss_rank and lose_l == w:
+        elif cycle and i == 0 and lose_l == w:
             lose_l = f'**{lose_l}**'
         terms.append(f'{win_l}→{lose_l}')
-    terms.reverse()                         # display weakest-first
     return '⟨' + ' ∣ '.join(terms) + '⟩'
 
 def cycle_tag_g(state, pairs, candidates):
-    return '[cyc]' if all(v is not None for v in worst_loss_ranks(state, pairs, candidates).values()) else '[CW] '
+    return '[cyc]' if condorcet_winner(state, pairs, candidates) is None else '[CW] '
 
 def neighbours_minimal_g(state, sincere):
     """Same atomic-move model as neighbours_minimal: adjacent-rank swap while

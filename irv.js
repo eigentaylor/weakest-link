@@ -115,6 +115,31 @@ function formatTournament(state) {
   return '⟨' + terms.join(' ∣ ') + '⟩';
 }
 
+// Real-world 3-candidate IRV elections that map onto states here. A node
+// is identified by GENERIC letters, but which real candidate is "A" vs
+// "B" vs "C" is an arbitrary choice — each fixed real election (with its
+// own votes_rank + tournament data) corresponds to 3! = 6 different nodes,
+// one per relabeling. Both elections below are center-squeeze cases (a
+// Condorcet winner is eliminated for lack of first-place votes); together
+// their 6+6 relabelings exhaust all 12 center-squeeze [SQZ] states in the
+// 48-state graph — Burlington and Alaska turn out to be the two distinct
+// "shapes" a 3-candidate center squeeze can take (whether the higher- or
+// lower-vote survivor wins the runoff between the other two).
+const REAL_EXAMPLES = {
+  'ABC|+++': { name: 'Burlington 2009', candidates: { A: 'Montroll', B: 'Kiss', C: 'Wright' } },
+  'ACB|++-': { name: 'Burlington 2009', candidates: { A: 'Montroll', B: 'Wright', C: 'Kiss' } },
+  'BAC|-++': { name: 'Burlington 2009', candidates: { A: 'Kiss', B: 'Montroll', C: 'Wright' } },
+  'BCA|--+': { name: 'Burlington 2009', candidates: { A: 'Wright', B: 'Montroll', C: 'Kiss' } },
+  'CAB|+--': { name: 'Burlington 2009', candidates: { A: 'Kiss', B: 'Wright', C: 'Montroll' } },
+  'CBA|---': { name: 'Burlington 2009', candidates: { A: 'Wright', B: 'Kiss', C: 'Montroll' } },
+  'ABC|++-': { name: 'Alaska 2022', candidates: { A: 'Begich', B: 'Palin', C: 'Peltola' } },
+  'ACB|+++': { name: 'Alaska 2022', candidates: { A: 'Begich', B: 'Peltola', C: 'Palin' } },
+  'BAC|--+': { name: 'Alaska 2022', candidates: { A: 'Palin', B: 'Begich', C: 'Peltola' } },
+  'BCA|-++': { name: 'Alaska 2022', candidates: { A: 'Peltola', B: 'Begich', C: 'Palin' } },
+  'CAB|---': { name: 'Alaska 2022', candidates: { A: 'Palin', B: 'Peltola', C: 'Begich' } },
+  'CBA|+--': { name: 'Alaska 2022', candidates: { A: 'Peltola', B: 'Palin', C: 'Begich' } },
+};
+
 function stateKey(state) {
   const [votesRank, tournament] = state;
   return votesRank.join('') + '|' + tournament.map(d => (d > 0 ? '+' : '-')).join('');
@@ -311,6 +336,7 @@ for (const s of allStates) {
     minimalNeighbours,
     minimalProfitableDeviations,
     anyMinimalProfitable: minimalProfitableDeviations.length > 0,
+    realExample: REAL_EXAMPLES[key] || null,
   });
 }
 

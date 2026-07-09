@@ -189,24 +189,39 @@ function render() {
     const el = d3.select(this);
     const r = d.aWins ? 9 : 6;
     const dash = dashForTag(d.data.tag);
+    const isReal = !!d.data.realExample;
+    const strokeColor = isReal ? '#818cf8' : '#0a0d18';
+    const strokeWidth = isReal ? 2.5 : (d.profitable ? 1.5 : 1);
     if (d.profitable) {
       const s = r * 1.7;
       el.append('polygon')
         .attr('points', `0,${-s} ${s},0 0,${s} ${-s},0`)
         .attr('fill', COLOR[d.winner])
-        .attr('stroke', '#0a0d18')
-        .attr('stroke-width', 1.5)
+        .attr('stroke', strokeColor)
+        .attr('stroke-width', strokeWidth)
         .attr('stroke-dasharray', dash);
     } else {
       el.append('circle')
         .attr('r', r)
         .attr('fill', COLOR[d.winner])
         .attr('fill-opacity', d.aWins ? 0.85 : 0.5)
-        .attr('stroke', '#0a0d18')
-        .attr('stroke-width', 1)
+        .attr('stroke', strokeColor)
+        .attr('stroke-width', strokeWidth)
         .attr('stroke-dasharray', dash);
     }
   });
+
+  // Labels for nodes that map onto a real-world election
+  nodeEls.filter(d => d.data.realExample)
+    .append('text')
+    .attr('dy', -14)
+    .attr('text-anchor', 'middle')
+    .attr('fill', '#a5b4fc')
+    .attr('font-size', '9px')
+    .attr('font-family', 'monospace')
+    .attr('font-weight', 700)
+    .attr('pointer-events', 'none')
+    .text(d => d.data.realExample.name);
 
   sim = d3.forceSimulation(nodes)
     .force('link', d3.forceLink(profitLinks)
@@ -363,8 +378,17 @@ function showTooltip(d, mode = 'descendants') {
     multiStepHtml = `<div class="tt-devs">${items}</div>`;
   }
 
+  const realExample = d.data.realExample;
+  const realExampleHtml = realExample
+    ? `<div style="margin-bottom:0.5rem;padding:0.4rem 0.6rem;background:rgba(129,140,248,0.12);border:1px solid rgba(129,140,248,0.3);border-radius:6px;font-size:0.78rem">` +
+      `<b style="color:var(--accent)">📍 ${realExample.name}</b><br>` +
+      `<span style="color:var(--muted)">${Object.entries(realExample.candidates).map(([g, name]) => `${g}=${name}`).join('  ·  ')}</span>` +
+      `</div>`
+    : '';
+
   tooltip.innerHTML = `
     ${modeHtml}
+    ${realExampleHtml}
     <div class="tt-desc">
       <div>${d.data.descVotes}</div>
       <div style="margin-top:0.25rem">${d.data.descTournament}</div>

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Deviation Graph — The Weakest Link</title>
+  <title>IRV Deviation Graph — The Weakest Link</title>
   <link rel="stylesheet" href="style.css">
   <style>
     body { overflow: hidden; }
@@ -15,11 +15,11 @@
 <nav>
   <a href="index.html" class="site-title">The Weakest Link</a>
   <a href="index.html" id="explorer-link">Explorer</a>
-  <a href="graph.html" class="active">Deviation Graph</a>
+  <a href="graph.html">Deviation Graph</a>
   <a href="3d.html">3D Surface</a>
-  <a href="IRV.html">IRV Graph</a>
+  <a href="IRV.html" class="active">IRV Graph</a>
   <span class="spacer"></span>
-  <a href="minimax_graph_test.py" target="_blank">source.py</a>
+  <a href="irv_graph_test.py" target="_blank">source.py</a>
 </nav>
 
 <div class="graph-toolbar">
@@ -31,10 +31,10 @@
     <span class="legend-item"><span class="legend-dot" style="background:var(--b)"></span> B wins</span>
     <span class="legend-item"><span class="legend-dot" style="background:var(--c)"></span> C wins</span>
     <span style="color:var(--muted);margin-left:.5rem">◇ = profitable deviation exists</span>
-    <span style="color:var(--muted)">dashed border = cycle &nbsp;·&nbsp; solid border = CW</span>
+    <span style="color:var(--muted)">dashed = cycle &nbsp;·&nbsp; dotted = center squeeze (CW eliminated) &nbsp;·&nbsp; solid = CW wins</span>
     <span style="color:var(--green)">— →A</span>
     <span style="color:var(--yellow)">— →B</span>
-    <span style="color:var(--muted)">solid edge = direct 1-step deviation &nbsp;·&nbsp; dashed edge = multi-step shortcut (Multi step mode)</span>
+    <span style="color:var(--muted)">flip_* edges are never profitable (proof in source.py) — shown for connectivity only</span>
     <span style="color:var(--muted)">hold Ctrl while hovering = direct predecessors · Ctrl+Shift = all ancestors</span>
   </div>
 </div>
@@ -46,7 +46,7 @@
 <div id="tooltip"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
-<script type="module" src="graph.js"></script>
+<script type="module" src="graph_irv.js"></script>
 <script>
   // Restore explorer state in the nav link from sessionStorage
   document.addEventListener('DOMContentLoaded', () => {

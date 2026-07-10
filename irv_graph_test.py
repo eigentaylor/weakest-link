@@ -13,14 +13,31 @@ Winner rule:
   survivors  = the other two candidates
   winner     = whichever survivor wins the tournament matchup between them
 
-Coalition A > B > C  sincere: A>B (+1), A>C (+1), B>C (+1)  [same as minimax]
+Coalition A > B > C  sincere: A>B (+1), A>C (+1), B>C (+1)
 
-Moves available to the coalition (NOT symmetric — this is the whole point):
-  lower_A   : move A toward fewer votes (down in votes_rank), if not last.
-  raise_B/C : move B or C toward more votes (up in votes_rank), if not first.
-  flip_mid  : on a matchup currently at its sincere direction, flip it.
-  (No raise_A, no lower_B/lower_C — the coalition can't manufacture A's
-  first-place support or suppress B/C's below their sincere level.)
+Moves available to the coalition on votes_rank — NOT symmetric, and not
+independent per-candidate either. A coalition that prefers A can only ever
+betray A: shift support away from A toward whichever of B/C they'd rather
+see survive. With only 3 slots that collapses to exactly TWO possible
+single-step moves, never three, and never both "lower A" and "raise B" as
+separate edges on the same state — betraying A downward IS raising whoever
+it lands on, the same swap either way:
+
+  swap_A  : swap A with the candidate directly below it (fewer votes),
+            available whenever A is not already last (about to be
+            eliminated already — nothing left to betray it into).
+  swap_BC : swap B and C, available whenever they're adjacent to each
+            other — i.e. whenever A is NOT sitting between them in
+            votes_rank (A is first or last, not in the middle).
+
+Worked through by case (A's current position, fewest->most):
+  A last (already eliminated next)  -> only swap_BC available.
+  A middle                          -> only swap_A available.
+  A first (safest)                  -> both swap_A and swap_BC available.
+
+Tournament moves (unchanged): flip_AB / flip_AC / flip_BC — on a matchup
+currently at its sincere direction, flip it to insincere. Gated by
+d == SINCERE[mid], same as minimax's flip.
 """
 
 from itertools import product, permutations
@@ -68,8 +85,8 @@ def is_center_squeeze(state):
     return cw is not None and cw == votes_rank[0]
 
 def state_tag(state):
-    """3-way tag (vs. minimax's 2-way cycle_tag): distinguishes the
-    pathological center-squeeze case from a plain cycle."""
+    """3-way tag: [SQZ] Condorcet winner exists but is eliminated (center
+    squeeze), [cyc] no Condorcet winner, [CW ] Condorcet winner survives."""
     cw = condorcet_winner(state)
     if cw is None:
         return '[cyc]'
@@ -89,8 +106,7 @@ def is_winner_relevant(votes_rank, mid):
 # ── description ────────────────────────────────────────────────────────────
 # Single source of truth for state notation, split into two parts so callers
 # can lay them out either on one line (tabular rows) or two (state-header
-# blocks, previewing the eventual HTML tooltip's "tournament on its own
-# line, vote order front and center" layout).
+# blocks) — tournament on its own line, vote order front and center.
 def _desc_parts(state):
     votes_rank, tournament = state
     dm = dict(zip(MATCHUPS, tournament))
@@ -128,36 +144,23 @@ def desc_block(state, indent='    '):
     return f'votes: {votes_part}\n{indent}tourn: {tourn_part}'
 
 # ── votes_rank moves ─────────────────────────────────────────────────────────
-def move_candidate(votes_rank, cand, target_idx):
-    others = [c for c in votes_rank if c != cand]
-    others.insert(target_idx, cand)
-    return tuple(others)
-
+# See module docstring: exactly two possible moves, never three, and never
+# a duplicate pair of edges to the same target.
 def votes_rank_neighbours(votes_rank):
-    """Full model: a candidate can jump to any legal position, closest
-    (adjacent) first — mirrors minimax's min-to-max strength ordering."""
-    for k, cand in enumerate(votes_rank):
-        if cand == 'A':
-            for j in range(k - 1, -1, -1):
-                yield move_candidate(votes_rank, cand, j), 'lower_A'
-        else:
-            for j in range(k + 1, 3):
-                yield move_candidate(votes_rank, cand, j), f'raise_{cand}'
-
-def votes_rank_neighbours_minimal(votes_rank):
-    """Minimal model: adjacent-swap only."""
-    for k, cand in enumerate(votes_rank):
-        if cand == 'A':
-            if k > 0:
-                yield move_candidate(votes_rank, cand, k - 1), 'lower_A'
-        else:
-            if k < 2:
-                yield move_candidate(votes_rank, cand, k + 1), f'raise_{cand}'
+    idx_a = votes_rank.index('A')
+    if idx_a > 0:
+        ns = list(votes_rank)
+        ns[idx_a - 1], ns[idx_a] = ns[idx_a], ns[idx_a - 1]
+        yield tuple(ns), 'swap_A'
+    if idx_a != 1:
+        i, j = (1, 2) if idx_a == 0 else (0, 1)
+        ns = list(votes_rank)
+        ns[i], ns[j] = ns[j], ns[i]
+        yield tuple(ns), 'swap_BC'
 
 # ── tournament moves ──────────────────────────────────────────────────────────
+# A flip is inherently atomic — no distance/strength concept.
 def tournament_neighbours(tournament):
-    """A flip is inherently atomic — no distance/strength concept, so this
-    single generator backs both neighbours() and neighbours_minimal()."""
     for i, mid in enumerate(MATCHUPS):
         d = tournament[i]
         if d == SINCERE[mid]:
@@ -165,20 +168,10 @@ def tournament_neighbours(tournament):
             nt[i] = -d
             yield tuple(nt), f'flip_{mid}'
 
-# ── composed state-level neighbours ──────────────────────────────────────────
-def neighbours(state):
-    """Full model: any-jump votes_rank moves + atomic tournament flips."""
+# ── composed state-level neighbours (single-step / atomic model) ────────────
+def neighbours_minimal(state):
     votes_rank, tournament = state
     for nvr, lab in votes_rank_neighbours(votes_rank):
-        yield (nvr, tournament), lab
-    for nt, lab in tournament_neighbours(tournament):
-        yield (votes_rank, nt), lab
-
-def neighbours_minimal(state):
-    """Minimal model: adjacent-swap votes_rank moves + atomic tournament
-    flips."""
-    votes_rank, tournament = state
-    for nvr, lab in votes_rank_neighbours_minimal(votes_rank):
         yield (nvr, tournament), lab
     for nt, lab in tournament_neighbours(tournament):
         yield (votes_rank, nt), lab
@@ -226,26 +219,27 @@ print(f'\n  Center-squeeze [SQZ] (CW exists, eliminated) : {sqz_count}')
 print(f'  Cycle [cyc] (no Condorcet winner)            : {cyc_count}')
 print(f'  Condorcet winner survives [CW ]              : {cw_survive_count}')
 
-# any_help / no_help over the full (any-jump) model — computed for section 3
-def profitable_devs(state, gen):
+def profitable_devs(state):
     w = winner(state)
     u0 = PREF[w]
-    for ns, lab in gen(state):
+    for ns, lab in neighbours_minimal(state):
         nw = winner(ns)
         if PREF[nw] > u0:
             yield ns, lab, nw
 
-any_help = no_help = 0
+profitable_cases = []   # (state, winner, [(ns, lab, nw), ...])
+total_profitable_edges = 0
 for s in all_states:
     if winner(s) == 'A':
         continue
-    if any(True for _ in profitable_devs(s, neighbours)):
-        any_help += 1
-    else:
-        no_help += 1
-assert any_help + no_help == a_loses
-print(f'\n  Any profitable deviation (full model)        : {any_help}')
-print(f'  No profitable deviation (full model)         : {no_help}')
+    rows = list(profitable_devs(s))
+    if rows:
+        profitable_cases.append((s, winner(s), rows))
+        total_profitable_edges += len(rows)
+
+print(f'\n  Any profitable deviation      : {len(profitable_cases)}')
+print(f'  No profitable deviation       : {a_loses - len(profitable_cases)}')
+print(f'  Total profitable edges        : {total_profitable_edges}')
 
 # ── section 2: flip-profitability proof ──────────────────────────────────────
 print(f'\n{"=" * W}')
@@ -269,10 +263,9 @@ print('''
 flip_edges = 0
 flip_profitable = 0
 for s in all_states:
-    votes_rank, _ = s
     w = winner(s)
     u0 = PREF[w]
-    for ns, lab in neighbours(s):
+    for ns, lab in neighbours_minimal(s):
         if lab.startswith('flip_'):
             flip_edges += 1
             if PREF[winner(ns)] > u0:
@@ -282,64 +275,33 @@ assert flip_profitable == 0
 print(f'  flip edges checked: {flip_edges}, profitable: {flip_profitable}  '
       f'(flip is NEVER profitable)')
 
-# ── section 3: full deviation listing ────────────────────────────────────────
+# ── section 3: all profitable cases ──────────────────────────────────────────
+# No MIN/MORE distinction here (unlike minimax): every move type yields at
+# most one alternative in this model, so there is nothing to rank by
+# strength — a state either has a profitable move of a given type or not.
 print(f'\n{"=" * W}')
-print('  ALL PROFITABLE CASES (full / any-jump model)')
-print('  (★=A wins  ·=B wins  ◄MIN=minimum deviation strength  +=extra-strong)')
+print('  ALL PROFITABLE CASES (single-step model)')
+print('  (★=A wins  ·=B wins)')
 print('=' * W)
 
-by_type = {k: {'total': 0, 'to_A': 0, 'to_B': 0}
-           for k in ['lower_A', 'raise_B', 'raise_C',
-                      'flip_AB', 'flip_AC', 'flip_BC']}
-cases = []
+by_type = {'swap_A': 0, 'swap_BC': 0}
+for s, w, rows in profitable_cases:
+    for ns, lab, nw in rows:
+        by_type[lab] = by_type.get(lab, 0) + 1
 
-for s in all_states:
-    w = winner(s)
-    if w == 'A':
+print(f'\n  {"type":<10}  cases')
+for k, n in by_type.items():
+    if n == 0:
         continue
-    u0 = PREF[w]
-
-    dev_by_label = {}
-    for ns, lab in neighbours(s):
-        dev_by_label.setdefault(lab, []).append((ns, lab, winner(ns)))
-
-    profitable_found = False
-    case_rows = []
-    for lab, devs in dev_by_label.items():
-        found_min = False
-        for ns, lab2, nw in devs:
-            if PREF[nw] > u0:
-                if not found_min:
-                    tag = 'MIN'
-                    found_min = True
-                    profitable_found = True
-                    by_type[lab]['total'] += 1
-                    by_type[lab]['to_A' if nw == 'A' else 'to_B'] += 1
-                else:
-                    tag = 'MORE'
-                case_rows.append((ns, lab2, nw, tag))
-
-    if profitable_found:
-        cases.append((s, w, case_rows))
-
-print(f'\n  {"type":<12}  cases  -> A wins  -> B wins')
-for k, d in by_type.items():
-    if d['total'] == 0:
-        continue
-    print(f'  {k:<12}  {d["total"]:>4}       {d["to_A"]:>4}       {d["to_B"]:>4}')
+    print(f'  {k:<10}  {n:>4}')
 
 print()
-for s, w, rows in cases:
+for s, w, rows in profitable_cases:
     print(f'  ┌ {state_tag(s)} {desc_block(s, indent="    ")}')
     print(f'  │   winner = {w}')
-    prev_lab = None
-    for ns, lab, nw, tag in rows:
-        if lab != prev_lab:
-            print(f'  │  — on {lab} —')
-            prev_lab = lab
+    for ns, lab, nw in rows:
         star = '★' if nw == 'A' else '·'
-        mark = ' ◄MIN' if tag == 'MIN' else ' +'
-        print(f'  │    {star} {state_tag(ns)} {desc(ns):<48} → {nw}{mark}')
+        print(f'  │    {star} {state_tag(ns)} {lab:<9} → {desc(ns):<48} → {nw}')
     print()
 
 # ── section 4: worked examples ───────────────────────────────────────────────
@@ -350,17 +312,12 @@ def show_example(label, state):
     print(f'    base: {state_tag(state)} {desc_block(state, indent="          ")}')
     print(f'          winner={w}  condorcet_winner={condorcet_winner(state)}  '
           f'center_squeeze={is_center_squeeze(state)}')
-    all_devs = list(neighbours(state))
+    all_devs = list(neighbours_minimal(state))
     if not all_devs:
         print('    (no deviations available)')
         return
-    prev_lab = None
     any_profitable = False
     for ns, lab in all_devs:
-        if lab != prev_lab:
-            cnt = sum(1 for _, l in all_devs if l == lab)
-            print(f'    — deviation {lab} ({cnt} alternative{"s" if cnt != 1 else ""}) —')
-            prev_lab = lab
         nw = winner(ns)
         if nw == w:
             cmp_sym = '='
@@ -370,7 +327,7 @@ def show_example(label, state):
         else:
             cmp_sym = '↓'
         flag = '  ★ A WINS' if nw == 'A' else ('  ✓ B wins' if nw == 'B' and PREF[nw] > u0 else '')
-        print(f'      {state_tag(ns)} [{lab}]  {desc(ns):<48} → {nw} {cmp_sym}{flag}')
+        print(f'    {state_tag(ns)} [{lab}]  {desc(ns):<48} → {nw} {cmp_sym}{flag}')
     if not any_profitable:
         print('    => NO profitable deviation exists from this state at any depth.')
 
@@ -380,7 +337,9 @@ print('=' * W)
 
 # Ex CS: A is the Condorcet winner (beats B and C) but has the fewest
 # first-place votes, so IRV eliminates A first. Remaining B,C: B beats C,
-# so B wins. This is the user's original center-squeeze example.
+# so B wins. This is the user's original center-squeeze example. A is
+# already last in votes_rank, so swap_A is unavailable — only swap_BC and
+# the (never-profitable) flips are.
 _ex_cs = (('A', 'B', 'C'), (+1, +1, +1))
 assert winner(_ex_cs) == 'B'
 assert condorcet_winner(_ex_cs) == 'A'
@@ -392,7 +351,8 @@ show_example(
 )
 
 # A center-squeeze state where a profitable deviation DOES exist, for
-# contrast: best reachable is B, not A.
+# contrast: best reachable is B, not A. A is in the middle of votes_rank
+# here, so swap_A is the only votes_rank move available.
 _ex_cs2 = (('B', 'A', 'C'), (-1, -1, +1))
 assert is_center_squeeze(_ex_cs2) is True
 show_example(
@@ -401,45 +361,7 @@ show_example(
     _ex_cs2
 )
 
-print('\n' + '=' * W)
-
-# ── section 5: minimal-model-only report ─────────────────────────────────────
-print('  TRUE SINGLE-STEP (MINIMAL / ADJACENT-SWAP) MODEL')
-print('  A single step is exactly one adjacent votes_rank swap (lower_A or')
-print('  raise_B/raise_C) or one atomic tournament flip.')
-print('=' * W)
-
-minimal_profitable_states = []
-for s in all_states:
-    w = winner(s)
-    if w == 'A':
-        continue
-    u0 = PREF[w]
-    devs = [(ns, lab, winner(ns)) for ns, lab in neighbours_minimal(s)]
-    profitable = [(ns, lab, nw) for ns, lab, nw in devs if PREF[nw] > u0]
-    if profitable:
-        minimal_profitable_states.append((s, w, profitable))
-
-full_profitable_set = {s for s, _, _ in cases}
-minimal_profitable_set = {s for s, _, _ in minimal_profitable_states}
-assert full_profitable_set == minimal_profitable_set
-
-print(f'\n  Single-step-profitable states: {len(minimal_profitable_states)} '
-      f'of {a_loses} (A does not win)')
-print('  NOTE: identical to the full (any-jump) model\'s profitable-state')
-print('  set (verified via assert). Unlike minimax, restricting to adjacent')
-print('  moves costs nothing here.')
-
-print()
-for s, w, profitable in minimal_profitable_states:
-    print(f'  ┌ {state_tag(s)} {desc_block(s, indent="    ")}')
-    print(f'  │   winner={w}')
-    for ns, lab, nw in profitable:
-        star = '★' if nw == 'A' else '·'
-        print(f'  │    {star} {state_tag(ns)} {lab:<9} → {desc(ns):<44} → {nw}')
-    print()
-
-# ── section 6: multi-step monotone reachability ──────────────────────────────
+# ── section 5: multi-step monotone reachability ──────────────────────────────
 def build_monotone_graph():
     adj = {}
     for s in all_states:
@@ -489,10 +411,9 @@ def show_path(path, u0):
             print(f'  │  step {hops} [{lab}]: {ct} {desc(state):<42} winner={nw} {cmp}')
 
 print('=' * W)
-print('  MULTI-STEP DEVIATION PATHS (minimal model)')
-print('  Coalition chains adjacent single steps; the outcome may never get')
-print('  strictly worse along the way, but the final step must strictly')
-print('  improve it.')
+print('  MULTI-STEP DEVIATION PATHS')
+print('  Coalition chains single steps; the outcome may never get strictly')
+print('  worse along the way, but the final step must strictly improve it.')
 print('=' * W)
 
 multi_only_cases = []
@@ -531,7 +452,7 @@ assert len(multi_only_cases) == 0
 assert len(upgrade_cases) == 0
 
 print(f'\n  Of {a_loses} states where A does not win:')
-print(f'    {len(minimal_profitable_states):>2}  profitable in 1 step (shown above)')
+print(f'    {len(profitable_cases):>2}  profitable in 1 step (shown above)')
 print(f'    {len(upgrade_cases):>2}    of which: multi-step reaches an even better outcome')
 print(f'    {len(multi_only_cases):>2}  profitable ONLY via 2+ step chains')
 print(f'    {no_path_count:>2}  no profitable path at any depth')
@@ -544,7 +465,7 @@ print('     multi-step-only / upgrade cases).')
 
 print('=' * W)
 
-# ── section 7: winner-relevant vs winner-irrelevant flip tagging ────────────
+# ── section 6: winner-relevant vs winner-irrelevant flip tagging ────────────
 print('\n' + '=' * W)
 print('  WINNER-RELEVANT VS WINNER-IRRELEVANT FLIPS  (backs section 2)')
 print('  For each votes_rank, the tournament matchup between the two')
@@ -564,44 +485,51 @@ for votes_rank in permutations(CANDIDATES):
 
 print('=' * W)
 
-# ── section 8: transposition-reachability verification ──────────────────────
+# ── section 7: votes_rank move availability, by A's position ────────────────
+# Demonstrates the rule directly (see module docstring): A last -> only
+# swap_BC; A middle -> only swap_A; A first -> both. Also confirms there is
+# never a duplicate edge (both moves landing on the identical target) —
+# by construction, swap_A and swap_BC always move DIFFERENT pairs of
+# candidates, so they can never collide.
 print('\n' + '=' * W)
-print('  TRANSPOSITION-REACHABILITY VERIFICATION')
-print('  A votes_rank transposition is reachable via lower_A/raise_B/raise_C')
-print('  iff the candidate moving UP is B or C (never A).')
+print('  VOTES_RANK MOVE AVAILABILITY  (by A\'s position, fewest -> most)')
 print('=' * W)
 print()
-print(f'  {"votes_rank":<12}{"swap(0,1) ->":<28}{"via":<24}'
-      f'{"swap(1,2) ->":<28}{"via"}')
+print(f'  {"votes_rank":<12}{"A at idx":<10}{"available moves":<24}{"targets"}')
 for votes_rank in permutations(CANDIDATES):
-    minimal_edges = {}
-    for ns, lab in votes_rank_neighbours_minimal(votes_rank):
-        minimal_edges.setdefault(ns, []).append(lab)
-
-    row = [''.join(votes_rank)]
-    for i in (0, 1):
-        swapped = list(votes_rank)
-        swapped[i], swapped[i + 1] = swapped[i + 1], swapped[i]
-        swapped = tuple(swapped)
-        via = minimal_edges.get(swapped, [])
-        row.append(''.join(swapped))
-        row.append(', '.join(via) if via else 'None')
-    print(f'  {row[0]:<12}{row[1]:<28}{row[2]:<24}{row[3]:<28}{row[4]}')
-
+    idx_a = votes_rank.index('A')
+    moves = list(votes_rank_neighbours(votes_rank))
+    move_strs = [f'{lab}->{"".join(ns)}' for ns, lab in moves]
+    assert len(set(ns for ns, _ in moves)) == len(moves), 'duplicate target detected'
+    print(f'  {"".join(votes_rank):<12}{idx_a:<10}{", ".join(lab for _, lab in moves):<24}'
+          f'{", ".join(move_strs)}')
+print()
+print('  A last (idx 0)   -> 1 move  (swap_BC only)')
+print('  A middle (idx 1) -> 1 move  (swap_A only)')
+print('  A first (idx 2)  -> 2 moves (swap_A and swap_BC — never the same target)')
 print('=' * W)
 
-# ── N-candidate generalization: intentionally omitted ────────────────────────
+# ═══════════════════════════════════════════════════════════════════════════
+#  N-CANDIDATE GENERALIZATION: intentionally omitted.
+#
+#  IRV elimination-with-vote-reallocation does not reduce to this
+#  3-candidate (votes_rank, tournament) model for N>3: with more than 3
+#  candidates IRV eliminates repeatedly, recomputing first-place votes
+#  among remaining candidates as eliminated candidates' ballots reallocate
+#  to next choices. That requires modeling full ranked ballots (or a
+#  redistribution rule), not just a permutation of first-place order plus
+#  a fixed pairwise tournament. The clean 2-component model here only
+#  works because with 3 candidates there is exactly one elimination round
+#  and the tournament between the 2 survivors fully determines the
+#  outcome. The swap_A/swap_BC move simplification is also specific to
+#  3 candidates (it relies on there being only one "other" candidate below
+#  A and only one pair left over once A is placed) and would need its own
+#  rework for N>3. Left for a future design task rather than forced into
+#  this model.
+# ═══════════════════════════════════════════════════════════════════════════
 print('\n' + '=' * W)
 print('  N-CANDIDATE GENERALIZATION: intentionally omitted.')
 print('  IRV elimination-with-vote-reallocation does not reduce to this')
-print('  3-candidate (votes_rank, tournament) model for N>3: with more than')
-print('  3 candidates IRV eliminates repeatedly, recomputing first-place')
-print('  votes among remaining candidates as eliminated candidates\' ballots')
-print('  reallocate to next choices. That requires modeling full ranked')
-print('  ballots (or a redistribution rule), not just a permutation of')
-print('  first-place order plus a fixed pairwise tournament. The clean')
-print('  2-component model here only works because with 3 candidates there')
-print('  is exactly one elimination round and the tournament between the 2')
-print('  survivors fully determines the outcome. Left for a future design')
-print('  task rather than forced into this model.')
+print('  3-candidate (votes_rank, tournament) model for N>3 — see comment')
+print('  above. Left for a future design task.')
 print('=' * W)

@@ -4,275 +4,245 @@ Weakest Link Strategic-Voting Graph -- IRV
 Each node is (votes_rank, tournament): votes_rank is the first-place-vote
 order from fewest to most (leftmost candidate is eliminated); tournament is
 the pairwise winner for each matchup (AB, AC, BC), shown winner>loser. Edges
-are single-step deviations available to a coalition preferring A>B>C: lower_A
-/ raise_B / raise_C (adjacent moves in votes_rank) or flip_<matchup> (reverse
-a currently-sincere matchup), labeled with the move, the move kind (reorder
-vs flip), and the resulting outcome. Node tags: CW = a Condorcet winner
-exists and wins; cycle = no Condorcet winner; SQZ = a Condorcet winner exists
-but is eliminated (center squeeze). A trailing bracket on a NODE line
-tags a real-world election that maps onto that exact state. Reference
-model / proofs: irv_graph_test.py. Rendered graph: IRV.html.
+are single-step deviations available to a coalition preferring A>B>C:
+swap_A (swap A with whoever is directly below it, if A is not already
+last) or swap_BC (swap B and C, whenever they are adjacent -- i.e. A is
+not between them), or flip_<matchup> (reverse a currently-sincere
+matchup), labeled with the move, the move kind (reorder vs flip), and
+the resulting outcome. Node tags: CW = a Condorcet winner exists and
+wins; cycle = no Condorcet winner; SQZ = a Condorcet winner exists but
+is eliminated (center squeeze). A trailing bracket on a NODE line tags
+a real-world election that maps onto that exact state. Reference model
+/ proofs: irv_graph_test.py. Rendered graph: IRV.html.
 
 NODE ABC|+++  [A<B<C | A>B, A>C, B>C]  outcome: B (SQZ)  [Burlington 2009 (A=Montroll, B=Kiss, C=Wright)]
-  -> ACB|+++  (raise_B, reorder)  outcome: B
+  -> ACB|+++  (swap_BC, reorder)  outcome: B
   -> ABC|-++  (flip_AB, flip)  outcome: B
   -> ABC|+-+  (flip_AC, flip)  outcome: B
   -> ABC|++-  (flip_BC, flip)  outcome: C
 
 NODE ACB|+++  [A<C<B | A>B, A>C, B>C]  outcome: B (SQZ)  [Alaska 2022 (A=Begich, B=Peltola, C=Palin)]
-  -> ABC|+++  (raise_C, reorder)  outcome: B
+  -> ABC|+++  (swap_BC, reorder)  outcome: B
   -> ACB|-++  (flip_AB, flip)  outcome: B
   -> ACB|+-+  (flip_AC, flip)  outcome: B
   -> ACB|++-  (flip_BC, flip)  outcome: C
 
 NODE BAC|+++  [B<A<C | A>B, A>C, B>C]  outcome: A (CW)
-  -> ABC|+++  (raise_B, reorder)  outcome: B
-  -> ABC|+++  (lower_A, reorder)  outcome: B
+  -> ABC|+++  (swap_A, reorder)  outcome: B
   -> BAC|-++  (flip_AB, flip)  outcome: A
   -> BAC|+-+  (flip_AC, flip)  outcome: C
   -> BAC|++-  (flip_BC, flip)  outcome: A
 
 NODE BCA|+++  [B<C<A | A>B, A>C, B>C]  outcome: A (CW)
-  -> CBA|+++  (raise_B, reorder)  outcome: A
-  -> BAC|+++  (raise_C, reorder)  outcome: A
-  -> BAC|+++  (lower_A, reorder)  outcome: A
+  -> BAC|+++  (swap_A, reorder)  outcome: A
+  -> CBA|+++  (swap_BC, reorder)  outcome: A
   -> BCA|-++  (flip_AB, flip)  outcome: A
   -> BCA|+-+  (flip_AC, flip)  outcome: C
   -> BCA|++-  (flip_BC, flip)  outcome: A
 
 NODE CAB|+++  [C<A<B | A>B, A>C, B>C]  outcome: A (CW)
-  -> ACB|+++  (raise_C, reorder)  outcome: B
-  -> ACB|+++  (lower_A, reorder)  outcome: B
+  -> ACB|+++  (swap_A, reorder)  outcome: B
   -> CAB|-++  (flip_AB, flip)  outcome: B
   -> CAB|+-+  (flip_AC, flip)  outcome: A
   -> CAB|++-  (flip_BC, flip)  outcome: A
 
 NODE CBA|+++  [C<B<A | A>B, A>C, B>C]  outcome: A (CW)
-  -> BCA|+++  (raise_C, reorder)  outcome: A
-  -> CAB|+++  (raise_B, reorder)  outcome: A
-  -> CAB|+++  (lower_A, reorder)  outcome: A
+  -> CAB|+++  (swap_A, reorder)  outcome: A
+  -> BCA|+++  (swap_BC, reorder)  outcome: A
   -> CBA|-++  (flip_AB, flip)  outcome: B
   -> CBA|+-+  (flip_AC, flip)  outcome: A
   -> CBA|++-  (flip_BC, flip)  outcome: A
 
 NODE ABC|++-  [A<B<C | A>B, A>C, C>B]  outcome: C (SQZ)  [Alaska 2022 (A=Begich, B=Palin, C=Peltola)]
-  -> ACB|++-  (raise_B, reorder)  outcome: C
+  -> ACB|++-  (swap_BC, reorder)  outcome: C
   -> ABC|-+-  (flip_AB, flip)  outcome: C
   -> ABC|+--  (flip_AC, flip)  outcome: C
 
 NODE ACB|++-  [A<C<B | A>B, A>C, C>B]  outcome: C (SQZ)  [Burlington 2009 (A=Montroll, B=Wright, C=Kiss)]
-  -> ABC|++-  (raise_C, reorder)  outcome: C
+  -> ABC|++-  (swap_BC, reorder)  outcome: C
   -> ACB|-+-  (flip_AB, flip)  outcome: C
   -> ACB|+--  (flip_AC, flip)  outcome: C
 
 NODE BAC|++-  [B<A<C | A>B, A>C, C>B]  outcome: A (CW)
-  -> ABC|++-  (raise_B, reorder)  outcome: C
-  -> ABC|++-  (lower_A, reorder)  outcome: C
+  -> ABC|++-  (swap_A, reorder)  outcome: C
   -> BAC|-+-  (flip_AB, flip)  outcome: A
   -> BAC|+--  (flip_AC, flip)  outcome: C
 
 NODE BCA|++-  [B<C<A | A>B, A>C, C>B]  outcome: A (CW)
-  -> CBA|++-  (raise_B, reorder)  outcome: A
-  -> BAC|++-  (raise_C, reorder)  outcome: A
-  -> BAC|++-  (lower_A, reorder)  outcome: A
+  -> BAC|++-  (swap_A, reorder)  outcome: A
+  -> CBA|++-  (swap_BC, reorder)  outcome: A
   -> BCA|-+-  (flip_AB, flip)  outcome: A
   -> BCA|+--  (flip_AC, flip)  outcome: C
 
 NODE CAB|++-  [C<A<B | A>B, A>C, C>B]  outcome: A (CW)
-  -> ACB|++-  (raise_C, reorder)  outcome: C
-  -> ACB|++-  (lower_A, reorder)  outcome: C
+  -> ACB|++-  (swap_A, reorder)  outcome: C
   -> CAB|-+-  (flip_AB, flip)  outcome: B
   -> CAB|+--  (flip_AC, flip)  outcome: A
 
 NODE CBA|++-  [C<B<A | A>B, A>C, C>B]  outcome: A (CW)
-  -> BCA|++-  (raise_C, reorder)  outcome: A
-  -> CAB|++-  (raise_B, reorder)  outcome: A
-  -> CAB|++-  (lower_A, reorder)  outcome: A
+  -> CAB|++-  (swap_A, reorder)  outcome: A
+  -> BCA|++-  (swap_BC, reorder)  outcome: A
   -> CBA|-+-  (flip_AB, flip)  outcome: B
   -> CBA|+--  (flip_AC, flip)  outcome: A
 
 NODE ABC|+-+  [A<B<C | A>B, C>A, B>C]  outcome: B (cycle)
-  -> ACB|+-+  (raise_B, reorder)  outcome: B
+  -> ACB|+-+  (swap_BC, reorder)  outcome: B
   -> ABC|--+  (flip_AB, flip)  outcome: B
   -> ABC|+--  (flip_BC, flip)  outcome: C
 
 NODE ACB|+-+  [A<C<B | A>B, C>A, B>C]  outcome: B (cycle)
-  -> ABC|+-+  (raise_C, reorder)  outcome: B
+  -> ABC|+-+  (swap_BC, reorder)  outcome: B
   -> ACB|--+  (flip_AB, flip)  outcome: B
   -> ACB|+--  (flip_BC, flip)  outcome: C
 
 NODE BAC|+-+  [B<A<C | A>B, C>A, B>C]  outcome: C (cycle)
-  -> ABC|+-+  (raise_B, reorder)  outcome: B  [profitable: yes]
-  -> ABC|+-+  (lower_A, reorder)  outcome: B  [profitable: yes]
+  -> ABC|+-+  (swap_A, reorder)  outcome: B
   -> BAC|--+  (flip_AB, flip)  outcome: C
   -> BAC|+--  (flip_BC, flip)  outcome: C
 
 NODE BCA|+-+  [B<C<A | A>B, C>A, B>C]  outcome: C (cycle)
-  -> CBA|+-+  (raise_B, reorder)  outcome: A  [profitable: yes]
-  -> BAC|+-+  (raise_C, reorder)  outcome: C
-  -> BAC|+-+  (lower_A, reorder)  outcome: C
+  -> BAC|+-+  (swap_A, reorder)  outcome: C
+  -> CBA|+-+  (swap_BC, reorder)  outcome: A
   -> BCA|--+  (flip_AB, flip)  outcome: C
   -> BCA|+--  (flip_BC, flip)  outcome: C
 
 NODE CAB|+-+  [C<A<B | A>B, C>A, B>C]  outcome: A (cycle)
-  -> ACB|+-+  (raise_C, reorder)  outcome: B
-  -> ACB|+-+  (lower_A, reorder)  outcome: B
+  -> ACB|+-+  (swap_A, reorder)  outcome: B
   -> CAB|--+  (flip_AB, flip)  outcome: B
   -> CAB|+--  (flip_BC, flip)  outcome: A
 
 NODE CBA|+-+  [C<B<A | A>B, C>A, B>C]  outcome: A (cycle)
-  -> BCA|+-+  (raise_C, reorder)  outcome: C
-  -> CAB|+-+  (raise_B, reorder)  outcome: A
-  -> CAB|+-+  (lower_A, reorder)  outcome: A
+  -> CAB|+-+  (swap_A, reorder)  outcome: A
+  -> BCA|+-+  (swap_BC, reorder)  outcome: C
   -> CBA|--+  (flip_AB, flip)  outcome: B
   -> CBA|+--  (flip_BC, flip)  outcome: A
 
 NODE ABC|+--  [A<B<C | A>B, C>A, C>B]  outcome: C (CW)
-  -> ACB|+--  (raise_B, reorder)  outcome: C
+  -> ACB|+--  (swap_BC, reorder)  outcome: C
   -> ABC|---  (flip_AB, flip)  outcome: C
 
 NODE ACB|+--  [A<C<B | A>B, C>A, C>B]  outcome: C (CW)
-  -> ABC|+--  (raise_C, reorder)  outcome: C
+  -> ABC|+--  (swap_BC, reorder)  outcome: C
   -> ACB|---  (flip_AB, flip)  outcome: C
 
 NODE BAC|+--  [B<A<C | A>B, C>A, C>B]  outcome: C (CW)
-  -> ABC|+--  (raise_B, reorder)  outcome: C
-  -> ABC|+--  (lower_A, reorder)  outcome: C
+  -> ABC|+--  (swap_A, reorder)  outcome: C
   -> BAC|---  (flip_AB, flip)  outcome: C
 
 NODE BCA|+--  [B<C<A | A>B, C>A, C>B]  outcome: C (CW)
-  -> CBA|+--  (raise_B, reorder)  outcome: A  [profitable: yes]
-  -> BAC|+--  (raise_C, reorder)  outcome: C
-  -> BAC|+--  (lower_A, reorder)  outcome: C
+  -> BAC|+--  (swap_A, reorder)  outcome: C
+  -> CBA|+--  (swap_BC, reorder)  outcome: A
   -> BCA|---  (flip_AB, flip)  outcome: C
 
 NODE CAB|+--  [C<A<B | A>B, C>A, C>B]  outcome: A (SQZ)  [Burlington 2009 (A=Kiss, B=Wright, C=Montroll)]
-  -> ACB|+--  (raise_C, reorder)  outcome: C
-  -> ACB|+--  (lower_A, reorder)  outcome: C
+  -> ACB|+--  (swap_A, reorder)  outcome: C
   -> CAB|---  (flip_AB, flip)  outcome: B
 
 NODE CBA|+--  [C<B<A | A>B, C>A, C>B]  outcome: A (SQZ)  [Alaska 2022 (A=Peltola, B=Palin, C=Begich)]
-  -> BCA|+--  (raise_C, reorder)  outcome: C
-  -> CAB|+--  (raise_B, reorder)  outcome: A
-  -> CAB|+--  (lower_A, reorder)  outcome: A
+  -> CAB|+--  (swap_A, reorder)  outcome: A
+  -> BCA|+--  (swap_BC, reorder)  outcome: C
   -> CBA|---  (flip_AB, flip)  outcome: B
 
 NODE ABC|-++  [A<B<C | B>A, A>C, B>C]  outcome: B (CW)
-  -> ACB|-++  (raise_B, reorder)  outcome: B
+  -> ACB|-++  (swap_BC, reorder)  outcome: B
   -> ABC|--+  (flip_AC, flip)  outcome: B
   -> ABC|-+-  (flip_BC, flip)  outcome: C
 
 NODE ACB|-++  [A<C<B | B>A, A>C, B>C]  outcome: B (CW)
-  -> ABC|-++  (raise_C, reorder)  outcome: B
+  -> ABC|-++  (swap_BC, reorder)  outcome: B
   -> ACB|--+  (flip_AC, flip)  outcome: B
   -> ACB|-+-  (flip_BC, flip)  outcome: C
 
 NODE BAC|-++  [B<A<C | B>A, A>C, B>C]  outcome: A (SQZ)  [Burlington 2009 (A=Kiss, B=Montroll, C=Wright)]
-  -> ABC|-++  (raise_B, reorder)  outcome: B
-  -> ABC|-++  (lower_A, reorder)  outcome: B
+  -> ABC|-++  (swap_A, reorder)  outcome: B
   -> BAC|--+  (flip_AC, flip)  outcome: C
   -> BAC|-+-  (flip_BC, flip)  outcome: A
 
 NODE BCA|-++  [B<C<A | B>A, A>C, B>C]  outcome: A (SQZ)  [Alaska 2022 (A=Peltola, B=Begich, C=Palin)]
-  -> CBA|-++  (raise_B, reorder)  outcome: B
-  -> BAC|-++  (raise_C, reorder)  outcome: A
-  -> BAC|-++  (lower_A, reorder)  outcome: A
+  -> BAC|-++  (swap_A, reorder)  outcome: A
+  -> CBA|-++  (swap_BC, reorder)  outcome: B
   -> BCA|--+  (flip_AC, flip)  outcome: C
   -> BCA|-+-  (flip_BC, flip)  outcome: A
 
 NODE CAB|-++  [C<A<B | B>A, A>C, B>C]  outcome: B (CW)
-  -> ACB|-++  (raise_C, reorder)  outcome: B
-  -> ACB|-++  (lower_A, reorder)  outcome: B
+  -> ACB|-++  (swap_A, reorder)  outcome: B
   -> CAB|--+  (flip_AC, flip)  outcome: B
   -> CAB|-+-  (flip_BC, flip)  outcome: B
 
 NODE CBA|-++  [C<B<A | B>A, A>C, B>C]  outcome: B (CW)
-  -> BCA|-++  (raise_C, reorder)  outcome: A  [profitable: yes]
-  -> CAB|-++  (raise_B, reorder)  outcome: B
-  -> CAB|-++  (lower_A, reorder)  outcome: B
+  -> CAB|-++  (swap_A, reorder)  outcome: B
+  -> BCA|-++  (swap_BC, reorder)  outcome: A
   -> CBA|--+  (flip_AC, flip)  outcome: B
   -> CBA|-+-  (flip_BC, flip)  outcome: B
 
 NODE ABC|-+-  [A<B<C | B>A, A>C, C>B]  outcome: C (cycle)
-  -> ACB|-+-  (raise_B, reorder)  outcome: C
+  -> ACB|-+-  (swap_BC, reorder)  outcome: C
   -> ABC|---  (flip_AC, flip)  outcome: C
 
 NODE ACB|-+-  [A<C<B | B>A, A>C, C>B]  outcome: C (cycle)
-  -> ABC|-+-  (raise_C, reorder)  outcome: C
+  -> ABC|-+-  (swap_BC, reorder)  outcome: C
   -> ACB|---  (flip_AC, flip)  outcome: C
 
 NODE BAC|-+-  [B<A<C | B>A, A>C, C>B]  outcome: A (cycle)
-  -> ABC|-+-  (raise_B, reorder)  outcome: C
-  -> ABC|-+-  (lower_A, reorder)  outcome: C
+  -> ABC|-+-  (swap_A, reorder)  outcome: C
   -> BAC|---  (flip_AC, flip)  outcome: C
 
 NODE BCA|-+-  [B<C<A | B>A, A>C, C>B]  outcome: A (cycle)
-  -> CBA|-+-  (raise_B, reorder)  outcome: B
-  -> BAC|-+-  (raise_C, reorder)  outcome: A
-  -> BAC|-+-  (lower_A, reorder)  outcome: A
+  -> BAC|-+-  (swap_A, reorder)  outcome: A
+  -> CBA|-+-  (swap_BC, reorder)  outcome: B
   -> BCA|---  (flip_AC, flip)  outcome: C
 
 NODE CAB|-+-  [C<A<B | B>A, A>C, C>B]  outcome: B (cycle)
-  -> ACB|-+-  (raise_C, reorder)  outcome: C
-  -> ACB|-+-  (lower_A, reorder)  outcome: C
+  -> ACB|-+-  (swap_A, reorder)  outcome: C
   -> CAB|---  (flip_AC, flip)  outcome: B
 
 NODE CBA|-+-  [C<B<A | B>A, A>C, C>B]  outcome: B (cycle)
-  -> BCA|-+-  (raise_C, reorder)  outcome: A  [profitable: yes]
-  -> CAB|-+-  (raise_B, reorder)  outcome: B
-  -> CAB|-+-  (lower_A, reorder)  outcome: B
+  -> CAB|-+-  (swap_A, reorder)  outcome: B
+  -> BCA|-+-  (swap_BC, reorder)  outcome: A
   -> CBA|---  (flip_AC, flip)  outcome: B
 
 NODE ABC|--+  [A<B<C | B>A, C>A, B>C]  outcome: B (CW)
-  -> ACB|--+  (raise_B, reorder)  outcome: B
+  -> ACB|--+  (swap_BC, reorder)  outcome: B
   -> ABC|---  (flip_BC, flip)  outcome: C
 
 NODE ACB|--+  [A<C<B | B>A, C>A, B>C]  outcome: B (CW)
-  -> ABC|--+  (raise_C, reorder)  outcome: B
+  -> ABC|--+  (swap_BC, reorder)  outcome: B
   -> ACB|---  (flip_BC, flip)  outcome: C
 
 NODE BAC|--+  [B<A<C | B>A, C>A, B>C]  outcome: C (SQZ)  [Alaska 2022 (A=Palin, B=Begich, C=Peltola)]
-  -> ABC|--+  (raise_B, reorder)  outcome: B  [profitable: yes]
-  -> ABC|--+  (lower_A, reorder)  outcome: B  [profitable: yes]
+  -> ABC|--+  (swap_A, reorder)  outcome: B
   -> BAC|---  (flip_BC, flip)  outcome: C
 
 NODE BCA|--+  [B<C<A | B>A, C>A, B>C]  outcome: C (SQZ)  [Burlington 2009 (A=Wright, B=Montroll, C=Kiss)]
-  -> CBA|--+  (raise_B, reorder)  outcome: B  [profitable: yes]
-  -> BAC|--+  (raise_C, reorder)  outcome: C
-  -> BAC|--+  (lower_A, reorder)  outcome: C
+  -> BAC|--+  (swap_A, reorder)  outcome: C
+  -> CBA|--+  (swap_BC, reorder)  outcome: B
   -> BCA|---  (flip_BC, flip)  outcome: C
 
 NODE CAB|--+  [C<A<B | B>A, C>A, B>C]  outcome: B (CW)
-  -> ACB|--+  (raise_C, reorder)  outcome: B
-  -> ACB|--+  (lower_A, reorder)  outcome: B
+  -> ACB|--+  (swap_A, reorder)  outcome: B
   -> CAB|---  (flip_BC, flip)  outcome: B
 
 NODE CBA|--+  [C<B<A | B>A, C>A, B>C]  outcome: B (CW)
-  -> BCA|--+  (raise_C, reorder)  outcome: C
-  -> CAB|--+  (raise_B, reorder)  outcome: B
-  -> CAB|--+  (lower_A, reorder)  outcome: B
+  -> CAB|--+  (swap_A, reorder)  outcome: B
+  -> BCA|--+  (swap_BC, reorder)  outcome: C
   -> CBA|---  (flip_BC, flip)  outcome: B
 
 NODE ABC|---  [A<B<C | B>A, C>A, C>B]  outcome: C (CW)
-  -> ACB|---  (raise_B, reorder)  outcome: C
+  -> ACB|---  (swap_BC, reorder)  outcome: C
 
 NODE ACB|---  [A<C<B | B>A, C>A, C>B]  outcome: C (CW)
-  -> ABC|---  (raise_C, reorder)  outcome: C
+  -> ABC|---  (swap_BC, reorder)  outcome: C
 
 NODE BAC|---  [B<A<C | B>A, C>A, C>B]  outcome: C (CW)
-  -> ABC|---  (raise_B, reorder)  outcome: C
-  -> ABC|---  (lower_A, reorder)  outcome: C
+  -> ABC|---  (swap_A, reorder)  outcome: C
 
 NODE BCA|---  [B<C<A | B>A, C>A, C>B]  outcome: C (CW)
-  -> CBA|---  (raise_B, reorder)  outcome: B  [profitable: yes]
-  -> BAC|---  (raise_C, reorder)  outcome: C
-  -> BAC|---  (lower_A, reorder)  outcome: C
+  -> BAC|---  (swap_A, reorder)  outcome: C
+  -> CBA|---  (swap_BC, reorder)  outcome: B
 
 NODE CAB|---  [C<A<B | B>A, C>A, C>B]  outcome: B (SQZ)  [Alaska 2022 (A=Palin, B=Peltola, C=Begich)]
-  -> ACB|---  (raise_C, reorder)  outcome: C
-  -> ACB|---  (lower_A, reorder)  outcome: C
+  -> ACB|---  (swap_A, reorder)  outcome: C
 
 NODE CBA|---  [C<B<A | B>A, C>A, C>B]  outcome: B (SQZ)  [Burlington 2009 (A=Wright, B=Kiss, C=Montroll)]
-  -> BCA|---  (raise_C, reorder)  outcome: C
-  -> CAB|---  (raise_B, reorder)  outcome: B
-  -> CAB|---  (lower_A, reorder)  outcome: B
+  -> CAB|---  (swap_A, reorder)  outcome: B
+  -> BCA|---  (swap_BC, reorder)  outcome: C

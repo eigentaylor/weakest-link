@@ -145,12 +145,14 @@ function stateKey(state) {
   return votesRank.join('') + '|' + tournament.map(d => (d > 0 ? '+' : '-')).join('');
 }
 
-// Human-readable labels. flip_* reuses minimax's "lie" framing (the
-// insincere direction winning), since SINCERE has identical values here.
+// Human-readable labels for the tournament flips only — flip_* reuses
+// minimax's "lie" framing (the insincere direction winning), since SINCERE
+// has identical values here. votes_rank moves (swap_A / swap_BC) build
+// their label dynamically per-edge instead (see votesRankNeighbours):
+// both moves are really the same underlying action — the coalition
+// betrays A and gives their vote to whichever of B/C benefits — so the
+// display should say exactly that, naming the specific candidate.
 const MOVE_LABEL = {
-  lower_A: 'lower A',
-  raise_B: 'raise B',
-  raise_C: 'raise C',
   flip_AB: 'lie B>A',
   flip_AC: 'lie C>A',
   flip_BC: 'lie C>B',
@@ -160,45 +162,40 @@ function moveLabel(mid) {
 }
 
 // ── votesRank moves ──────────────────────────────────────────────────────────
-function moveCandidate(votesRank, cand, targetIdx) {
-  const others = votesRank.filter(c => c !== cand);
-  others.splice(targetIdx, 0, cand);
-  return others;
-}
-
-// Full model: a candidate can jump to any legal position, closest (adjacent)
-// first. No raise_A / lower_B / lower_C — the coalition can't manufacture
-// A's first-place support or suppress B/C below their sincere level.
+// A coalition preferring A can only ever betray A — shift support away from
+// A toward whichever of B/C they'd rather see survive. With only 3 slots,
+// that collapses to exactly two possible single-step moves (never both
+// "lower A" and "raise B" as separate edges — betraying A downward IS
+// raising whoever it lands on, the same swap either way):
+//   swap_A  : swap A with the candidate directly below it (fewer votes),
+//             available whenever A is not already last. That candidate is
+//             who the coalition is betraying A in favor of.
+//   swap_BC : swap B and C, available whenever they're adjacent to each
+//             other — i.e. whenever A is NOT sitting between them (A is
+//             first or last, not in the middle). The one moving to more
+//             votes is who the coalition is betraying A in favor of.
+// Either way the display label is "Betray A, vote for X" — that's what
+// both moves are, mechanically.
 function* votesRankNeighbours(votesRank) {
-  for (let k = 0; k < 3; k++) {
-    const cand = votesRank[k];
-    if (cand === 'A') {
-      for (let j = k - 1; j >= 0; j--) {
-        yield { newVotesRank: moveCandidate(votesRank, cand, j), lab: 'lower_A' };
-      }
-    } else {
-      for (let j = k + 1; j < 3; j++) {
-        yield { newVotesRank: moveCandidate(votesRank, cand, j), lab: `raise_${cand}` };
-      }
-    }
+  const idxA = votesRank.indexOf('A');
+  if (idxA > 0) {
+    const betray = votesRank[idxA - 1];
+    const ns = [...votesRank];
+    [ns[idxA - 1], ns[idxA]] = [ns[idxA], ns[idxA - 1]];
+    yield { newVotesRank: ns, lab: 'swap_A', label: `Betray A, vote for ${betray}` };
   }
-}
-
-// Minimal model: adjacent-swap only.
-function* votesRankNeighboursMinimal(votesRank) {
-  for (let k = 0; k < 3; k++) {
-    const cand = votesRank[k];
-    if (cand === 'A') {
-      if (k > 0) yield { newVotesRank: moveCandidate(votesRank, cand, k - 1), lab: 'lower_A' };
-    } else {
-      if (k < 2) yield { newVotesRank: moveCandidate(votesRank, cand, k + 1), lab: `raise_${cand}` };
-    }
+  if (idxA !== 1) {
+    const i = idxA === 0 ? 1 : 0;
+    const j = idxA === 0 ? 2 : 1;
+    const betray = votesRank[i];   // moving to the higher (more-votes) slot
+    const ns = [...votesRank];
+    [ns[i], ns[j]] = [ns[j], ns[i]];
+    yield { newVotesRank: ns, lab: 'swap_BC', label: `Betray A, vote for ${betray}` };
   }
 }
 
 // ── tournament moves ──────────────────────────────────────────────────────────
-// A flip is inherently atomic — no distance/strength concept — so this
-// single generator backs both the full and minimal composed generators.
+// A flip is inherently atomic — no distance/strength concept.
 function* tournamentNeighbours(tournament) {
   for (let i = 0; i < MATCHUPS.length; i++) {
     const mid = MATCHUPS[i];
@@ -211,21 +208,11 @@ function* tournamentNeighbours(tournament) {
   }
 }
 
-// ── composed state-level neighbours ──────────────────────────────────────────
-function* neighbours(state) {
-  const [votesRank, tournament] = state;
-  for (const { newVotesRank, lab } of votesRankNeighbours(votesRank)) {
-    yield { newState: [newVotesRank, tournament], label: moveLabel(lab), mid: lab, kind: 'reorder' };
-  }
-  for (const { newTournament, lab } of tournamentNeighbours(tournament)) {
-    yield { newState: [votesRank, newTournament], label: moveLabel(lab), mid: lab, kind: 'flip' };
-  }
-}
-
+// ── composed state-level neighbours (single-step / atomic model) ────────────
 function* neighboursMinimal(state) {
   const [votesRank, tournament] = state;
-  for (const { newVotesRank, lab } of votesRankNeighboursMinimal(votesRank)) {
-    yield { newState: [newVotesRank, tournament], label: moveLabel(lab), mid: lab, kind: 'reorder' };
+  for (const { newVotesRank, lab, label } of votesRankNeighbours(votesRank)) {
+    yield { newState: [newVotesRank, tournament], label, mid: lab, kind: 'reorder' };
   }
   for (const { newTournament, lab } of tournamentNeighbours(tournament)) {
     yield { newState: [votesRank, newTournament], label: moveLabel(lab), mid: lab, kind: 'flip' };
@@ -267,55 +254,22 @@ for (const s of allStates) {
   const w = winner(s);
   const tag = stateTag(s);
 
-  const allNeighbours = [];
-  const devByMid = {};
-  for (const { newState, label, mid, kind } of neighbours(s)) {
-    const nk = stateKey(newState);
-    const nw = winner(newState);
-    const entry = { newState, label, mid, kind, winner: nw, key: nk };
-    allNeighbours.push(entry);
-    if (!devByMid[mid]) devByMid[mid] = [];
-    devByMid[mid].push(entry);
-  }
-
-  const profitableDeviations = [];
-  if (w !== 'A') {
-    const u0 = PREF[w];
-    for (const mid of Object.keys(devByMid)) {
-      let foundMin = false;
-      for (const dev of devByMid[mid]) {
-        if (PREF[dev.winner] > u0) {
-          dev.profitable = true;
-          dev.tag = foundMin ? 'MORE' : 'MIN';
-          if (!foundMin) foundMin = true;
-          profitableDeviations.push(dev);
-        }
-      }
-    }
-  }
-
   const minimalNeighbours = [];
-  const minDevByMid = {};
   for (const { newState, label, mid, kind } of neighboursMinimal(s)) {
     const nk = stateKey(newState);
     const nw = winner(newState);
-    const entry = { newState, label, mid, kind, winner: nw, key: nk };
-    minimalNeighbours.push(entry);
-    if (!minDevByMid[mid]) minDevByMid[mid] = [];
-    minDevByMid[mid].push(entry);
+    minimalNeighbours.push({ newState, label, mid, kind, winner: nw, key: nk });
   }
 
   const minimalProfitableDeviations = [];
   if (w !== 'A') {
     const u0 = PREF[w];
-    for (const mid of Object.keys(minDevByMid)) {
-      for (const dev of minDevByMid[mid]) {
-        if (PREF[dev.winner] > u0) {
-          dev.profitable = true;
-          dev.hops = 1;
-          dev.path = [{ label: dev.label, key: dev.key, winner: dev.winner }];
-          minimalProfitableDeviations.push(dev);
-        }
+    for (const dev of minimalNeighbours) {
+      if (PREF[dev.winner] > u0) {
+        dev.profitable = true;
+        dev.hops = 1;
+        dev.path = [{ label: dev.label, key: dev.key, winner: dev.winner }];
+        minimalProfitableDeviations.push(dev);
       }
     }
   }
@@ -329,10 +283,6 @@ for (const s of allStates) {
     isCycle: tag === '[cyc]',
     descVotes: formatVotesRank(s),
     descTournament: formatTournament(s),
-    allNeighbours,
-    devByMid,
-    profitableDeviations,
-    anyProfitable: profitableDeviations.length > 0,
     minimalNeighbours,
     minimalProfitableDeviations,
     anyMinimalProfitable: minimalProfitableDeviations.length > 0,
@@ -389,5 +339,5 @@ export {
   MATCHUPS, PAIRS, SINCERE, PREF,
   winner, condorcetWinner, isCenterSqueeze, stateTag, relevantMatchup, stateKey,
   formatVotesRank, formatTournament,
-  neighbours, neighboursMinimal, allStates, stateData, stateMap,
+  neighboursMinimal, allStates, stateData, stateMap,
 };

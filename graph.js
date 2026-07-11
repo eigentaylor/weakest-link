@@ -54,6 +54,20 @@ function buildData() {
 
   const nodeById = new Map(nodes.map(n => [n.id, n]));
 
+  // Tag gate-target nodes: Q1 = an A state reached via a G1 (burial) gate,
+  // Q2 = a B state reached via a G2 (betrayal) gate. Mirrors the archetype
+  // classification in minimax.js, but tags the destination of the deviation
+  // rather than its source.
+  for (const n of nodes) n.gateTarget = null;
+  for (const n of nodes) {
+    for (const dev of n.data.minimalProfitableDeviations) {
+      const target = nodeById.get(dev.key);
+      if (!target) continue;
+      if (dev.winner === 'A') target.gateTarget = 'Q1';
+      else if (dev.winner === 'B') target.gateTarget = 'Q2';
+    }
+  }
+
   // All deviation edges — always the atomic single-step (neighboursMinimal) graph;
   // these are the only genuinely adjacent moves under the current model.
   allLinks = [];
@@ -215,8 +229,11 @@ function render() {
     }
   });
 
-  // Archetype labels (only for states that carry an archetype tag — the
-  // multi-step-only profitable states have no single-step archetype to show)
+  // Gate labels (only for states that carry an archetype tag — the
+  // multi-step-only profitable states have no single-step gate to show).
+  // G1 = burial gate (B state -> A state, reaching Q1); G2 = betrayal gate
+  // (C state -> B state, reaching Q2).
+  const GATE_LABEL = { 1: 'G2', 2: 'G1' };
   nodeEls.filter(d => d.profitable && d.data.archetype != null)
     .append('text')
     .attr('dy', -14)
@@ -225,7 +242,18 @@ function render() {
     .attr('font-size', '9px')
     .attr('font-family', 'monospace')
     .attr('pointer-events', 'none')
-    .text(d => `A${d.data.archetype ?? '?'}`);
+    .text(d => GATE_LABEL[d.data.archetype] ?? '?');
+
+  // Gate-target labels: Q1/Q2 tag the states landed on via a G1/G2 gate.
+  nodeEls.filter(d => d.gateTarget != null)
+    .append('text')
+    .attr('dy', d => d.profitable && d.data.archetype != null ? 20 : -14)
+    .attr('text-anchor', 'middle')
+    .attr('fill', '#fbbf24')
+    .attr('font-size', '9px')
+    .attr('font-family', 'monospace')
+    .attr('pointer-events', 'none')
+    .text(d => d.gateTarget);
 
   // ── Simulation ─────────────────────────────────────────────────────────────
   // Use profitable links for the link force so those nodes cluster together.

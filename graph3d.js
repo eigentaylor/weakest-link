@@ -16,7 +16,6 @@ const LAYER_SPACING = 15;
 const BUMP_SCALE = 0;
 
 // ── State ─────────────────────────────────────────────────────────────────────
-let showAllNodes = true;
 let showAllEdges = true;
 let showMinimalEdges = true;
 let hoveredId = null;
@@ -38,7 +37,7 @@ const container = document.getElementById('graph-container');
 const tooltip = document.getElementById('tooltip');
 
 function getVisible() {
-  return showAllNodes ? allStates : allStates.filter(s => winner(s) !== 'A');
+  return allStates;
 }
 
 // ── Height: SCC condensation + longest-path-to-sink layering ─────────────────
@@ -589,13 +588,6 @@ window.addEventListener('blur', () => {
 });
 
 // ── Toolbar ───────────────────────────────────────────────────────────────────
-document.getElementById('toggle-nodes-btn').addEventListener('click', function() {
-  showAllNodes = !showAllNodes;
-  this.textContent = showAllNodes ? 'Show 32 (hide A-wins)' : 'Show all 48';
-  this.classList.toggle('active', showAllNodes);
-  render();
-});
-
 document.getElementById('toggle-edges-btn').addEventListener('click', function() {
   showAllEdges = !showAllEdges;
   this.textContent = showAllEdges ? 'Profitable edges only' : 'Show all edges';

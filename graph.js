@@ -11,7 +11,6 @@ const COLOR = { A: '#60a5fa', B: '#fbbf24', C: '#f87171' };
 const PROFIT_COLOR = { A: '#34d399', B: '#fde68a' };
 
 // ── State ─────────────────────────────────────────────────────────────────────
-let showAllNodes = true;    // toggle: all 48 vs 32 non-A-wins (default: show all)
 let showAllEdges = true;    // toggle: show all deviation edges (default on)
 let showMinimalEdges = true; // toggle: single-step edges only
 let hoveredNode = null;
@@ -29,7 +28,7 @@ let sim;
 const tooltip = document.getElementById('tooltip');
 
 function getVisible() {
-  return showAllNodes ? allStates : allStates.filter(s => winner(s) !== 'A');
+  return allStates;
 }
 
 function buildData() {
@@ -459,15 +458,6 @@ window.addEventListener('blur', () => {
 });
 
 // ── Toolbar ───────────────────────────────────────────────────────────────────
-document.getElementById('toggle-nodes-btn').addEventListener('click', function() {
-  showAllNodes = !showAllNodes;
-  // active = currently in "all 48" mode; text = what clicking does
-  this.textContent = showAllNodes ? 'Show 32 (hide A-wins)' : 'Show all 48';
-  this.classList.toggle('active', showAllNodes);
-  hoveredNode = null;
-  render();
-});
-
 document.getElementById('toggle-edges-btn').addEventListener('click', function() {
   showAllEdges = !showAllEdges;
   this.textContent = showAllEdges ? 'Profitable edges only' : 'Show all edges';

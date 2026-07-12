@@ -6,12 +6,10 @@
   <title>3D Surface — The Weakest Link</title>
   <link rel="stylesheet" href="style.css">
   <style>
-    body { overflow: hidden; }
-    #graph-container { height: calc(100vh - 96px); }
     #graph-container canvas { display: block; }
   </style>
 </head>
-<body>
+<body class="graph-page">
 
 <nav>
   <a href="index.html" class="site-title">The Weakest Link</a>
@@ -27,6 +25,7 @@
   <button id="toggle-edges-btn" class="toolbar-btn active">Profitable edges only</button>
   <button id="toggle-minimal-btn" class="toolbar-btn active">Multi step</button>
   <button id="reset-camera-btn" class="toolbar-btn">Reset camera</button>
+  <button id="legend-toggle-btn" class="toolbar-btn legend-toggle-btn" aria-expanded="false">Legend</button>
   <div class="legend">
     <span class="legend-item"><span class="legend-dot" style="background:var(--a)"></span> A wins</span>
     <span class="legend-item"><span class="legend-dot" style="background:var(--b)"></span> B wins</span>
@@ -60,6 +59,14 @@
     if (saved) {
       document.getElementById('explorer-link').href = 'index.html#' + saved;
     }
+
+    const legendToggle = document.getElementById('legend-toggle-btn');
+    const legend = document.querySelector('.legend');
+    legendToggle.addEventListener('click', () => {
+      const open = legend.classList.toggle('open');
+      legendToggle.classList.toggle('active', open);
+      legendToggle.setAttribute('aria-expanded', open);
+    });
   });
 </script>
 </body>

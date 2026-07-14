@@ -4,6 +4,7 @@ import {
   winner, stateKey,
   allStates, stateData,
 } from './star.js';
+import { createMoveIsolation } from './graph-moves.js';
 
 const COLOR = { A: '#60a5fa', B: '#fbbf24', C: '#f87171' };
 const PROFIT_COLOR = { A: '#34d399', B: '#fde68a' };
@@ -14,6 +15,11 @@ let showMinimalEdges = true; // toggle: single-step edges only
 let showTournamentDeviations = false; // toggle: include flip_* moves (default OFF)
 let hoveredNode = null;
 let ctrlDown = false, shiftDown = false; // hover-direction modifiers
+const moveIso = createMoveIsolation({
+  getNeighbours: n => visibleNeighbours(n.data),
+  isProfitable: (n, nb) => new Set(n.data.minimalProfitableDeviationsFull.map(d => d.key)).has(nb.key),
+  profitColor: PROFIT_COLOR,
+});
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 let nodes = [];
@@ -75,7 +81,7 @@ function buildData() {
   for (const n of nodes) {
     for (const nb of visibleNeighbours(n.data)) {
       const target = nodeById.get(nb.key);
-      if (target) allLinks.push({ source: n, target, label: nb.label, w: nb.winner });
+      if (target) allLinks.push({ source: n, target, label: nb.label, w: nb.winner, labels: new Set([nb.label]) });
     }
   }
 
@@ -84,15 +90,21 @@ function buildData() {
   // that end in a strict improvement. Unlike IRV, star_graph_test.py found
   // multi-step chains DO reach some outcomes single-step can't — so this
   // toggle is not just UI parity here, it changes what's reachable.
+  // `labels` carries every move-label touched by the edge (just the one
+  // label for a single hop, all of them for a multi-hop shortcut) so the
+  // isolate-a-move feature can match composite edges too.
   profitLinks = [];
   for (const n of nodes) {
     const devs = showMinimalEdges ? minimalDeviations(n.data) : multiStepDeviations(n.data);
     for (const dev of devs) {
       if (visibleKeys.has(dev.key)) {
-        profitLinks.push({ source: n.id, target: dev.key, w: dev.winner, hops: dev.hops, dashed: dev.hops > 1 });
+        const labels = dev.hops === 1 ? new Set([dev.label]) : new Set(dev.path.map(p => p.label));
+        profitLinks.push({ source: n.id, target: dev.key, w: dev.winner, hops: dev.hops, dashed: dev.hops > 1, labels });
       }
     }
   }
+
+  moveIso.rebuildStats(nodes);
 }
 
 function initPositions(W, H) {
@@ -181,6 +193,9 @@ function render() {
     .attr('pointer-events', 'none');
 
   hoverEdgeEls = hoverEdgeGroup.selectAll('line');
+
+  moveIso.apply(allEdgeEls, profitEdgeEls, showAllEdges);
+  moveIso.renderPanel(() => moveIso.apply(allEdgeEls, profitEdgeEls, showAllEdges));
 
   nodeEls = nodeGroup.selectAll('g.node')
     .data(nodes, d => d.id)
@@ -291,6 +306,10 @@ function bfsReachable(startId, adj, endpoint) {
 
 function applyHover(d) {
   hoveredNode = d;
+  if (moveIso.isActive()) {
+    nodeEls.style('filter', n => n.id === d.id ? 'drop-shadow(0 0 7px #fff) drop-shadow(0 0 3px #fff)' : null);
+    return;
+  }
   const mode = currentMode();
   const edgePool = showAllEdges ? allLinks : profitLinks;
   const { out, inn } = buildAdjacency(edgePool);
@@ -329,6 +348,10 @@ function applyHover(d) {
 
 function clearHover() {
   hoveredNode = null;
+  if (moveIso.isActive()) {
+    nodeEls.style('filter', null);
+    return;
+  }
   nodeEls.attr('opacity', 1).style('filter', null);
   allEdgeEls.attr('stroke-opacity', showAllEdges ? 0.3 : 0);
   profitEdgeEls.attr('opacity', 1);
@@ -428,9 +451,8 @@ document.getElementById('toggle-edges-btn').addEventListener('click', function()
   showAllEdges = !showAllEdges;
   this.textContent = showAllEdges ? 'Profitable edges only' : 'Show all edges';
   this.classList.toggle('active', showAllEdges);
-  if (!hoveredNode) {
-    allEdgeEls.attr('stroke-opacity', showAllEdges ? 0.3 : 0);
-    profitEdgeEls.attr('stroke-opacity', 1);
+  if (!hoveredNode || moveIso.isActive()) {
+    moveIso.apply(allEdgeEls, profitEdgeEls, showAllEdges);
   }
 });
 

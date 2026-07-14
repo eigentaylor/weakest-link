@@ -6,6 +6,7 @@ import {
   allStates, stateData,
   encodeState,
 } from './minimax.js';
+import { createMoveIsolation } from './graph-moves.js';
 
 const COLOR = { A: '#60a5fa', B: '#fbbf24', C: '#f87171' };
 const PROFIT_COLOR = { A: '#34d399', B: '#fde68a' };
@@ -15,6 +16,11 @@ let showAllEdges = true;    // toggle: show all deviation edges (default on)
 let showMinimalEdges = true; // toggle: single-step edges only
 let hoveredNode = null;
 let ctrlDown = false, shiftDown = false; // hover-direction modifiers
+const moveIso = createMoveIsolation({
+  getNeighbours: n => n.data.minimalNeighbours,
+  isProfitable: (n, nb) => !!nb.profitable,
+  profitColor: PROFIT_COLOR,
+});
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 let nodes = [];
@@ -73,22 +79,28 @@ function buildData() {
   for (const n of nodes) {
     for (const nb of n.data.minimalNeighbours) {
       const target = nodeById.get(nb.key);
-      if (target) allLinks.push({ source: n, target, label: nb.label, w: nb.winner });
+      if (target) allLinks.push({ source: n, target, label: nb.label, w: nb.winner, labels: new Set([nb.label]) });
     }
   }
 
   // Profitable edges (string IDs → forceLink resolves them). Single step = direct
   // one-hop improvements; multi step = monotone (never-worse) chains that end in a
   // strict improvement, drawn as shortcuts (dashed when the shortest path is >1 hop).
+  // `labels` carries every move-label touched by the edge (just the one label for a
+  // single hop, all of them for a multi-hop shortcut) so the isolate-a-move feature
+  // can match composite edges too.
   profitLinks = [];
   for (const n of nodes) {
     const devs = showMinimalEdges ? n.data.minimalProfitableDeviations : n.data.multiStepProfitableDeviations;
     for (const dev of devs) {
       if (visibleKeys.has(dev.key)) {
-        profitLinks.push({ source: n.id, target: dev.key, w: dev.winner, hops: dev.hops, dashed: dev.hops > 1 });
+        const labels = dev.hops === 1 ? new Set([dev.label]) : new Set(dev.path.map(p => p.label));
+        profitLinks.push({ source: n.id, target: dev.key, w: dev.winner, hops: dev.hops, dashed: dev.hops > 1, labels });
       }
     }
   }
+
+  moveIso.rebuildStats(nodes);
 }
 
 function initPositions(W, H) {
@@ -177,6 +189,9 @@ function render() {
 
   // ── Hover edge group (rebuilt on each hover) ───────────────────────────────
   hoverEdgeEls = hoverEdgeGroup.selectAll('line'); // empty D3 selection — safe to call .attr() on
+
+  moveIso.apply(allEdgeEls, profitEdgeEls, showAllEdges);
+  moveIso.renderPanel(() => moveIso.apply(allEdgeEls, profitEdgeEls, showAllEdges));
 
   // ── Nodes ─────────────────────────────────────────────────────────────────
   nodeEls = nodeGroup.selectAll('g.node')
@@ -327,6 +342,12 @@ function bfsReachable(startId, adj, endpoint) {
 
 function applyHover(d) {
   hoveredNode = d;
+  if (moveIso.isActive()) {
+    // A move isolation is pinned — leave the edge glow alone and just ring
+    // the hovered node, so mousing over nodes on a glowing edge still works.
+    nodeEls.style('filter', n => n.id === d.id ? 'drop-shadow(0 0 7px #fff) drop-shadow(0 0 3px #fff)' : null);
+    return;
+  }
   const mode = currentMode();
   const edgePool = showAllEdges ? allLinks : profitLinks;
   const { out, inn } = buildAdjacency(edgePool);
@@ -367,6 +388,10 @@ function applyHover(d) {
 
 function clearHover() {
   hoveredNode = null;
+  if (moveIso.isActive()) {
+    nodeEls.style('filter', null);
+    return;
+  }
   nodeEls.attr('opacity', 1).style('filter', null);
   allEdgeEls.attr('stroke-opacity', showAllEdges ? 0.3 : 0);
   profitEdgeEls.attr('opacity', 1);
@@ -462,9 +487,8 @@ document.getElementById('toggle-edges-btn').addEventListener('click', function()
   showAllEdges = !showAllEdges;
   this.textContent = showAllEdges ? 'Profitable edges only' : 'Show all edges';
   this.classList.toggle('active', showAllEdges);
-  if (!hoveredNode) {
-    allEdgeEls.attr('stroke-opacity', showAllEdges ? 0.3 : 0);
-    profitEdgeEls.attr('stroke-opacity', 1);
+  if (!hoveredNode || moveIso.isActive()) {
+    moveIso.apply(allEdgeEls, profitEdgeEls, showAllEdges);
   }
 });
 

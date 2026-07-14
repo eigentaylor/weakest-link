@@ -384,7 +384,8 @@ body.graph-page {
 }
 
 body.graph-page nav,
-body.graph-page .graph-toolbar {
+body.graph-page .graph-toolbar,
+body.graph-page .moves-panel {
   flex: 0 0 auto;
 }
 
@@ -515,6 +516,71 @@ body.graph-page .graph-toolbar {
   width: 10px;
   height: 10px;
   transform: rotate(45deg);
+}
+
+/* ── Moves panel (isolate-a-move) ── */
+.moves-panel {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.moves-panel-label {
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-right: 0.15rem;
+}
+
+.move-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.3rem 0.7rem;
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--text);
+  font-size: 0.78rem;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+  user-select: none;
+}
+
+.move-chip:hover { border-color: var(--accent); }
+
+.move-chip.active {
+  border-color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.45);
+}
+
+.move-chip .move-name { font-family: 'Fira Mono', monospace; }
+
+.move-chip .move-count {
+  font-size: 0.7rem;
+  color: var(--muted);
+  font-family: 'Fira Mono', monospace;
+}
+
+.move-chip .move-count.has-profitable { color: var(--green); }
+.move-chip.active .move-count { color: var(--text); }
+.move-chip.active .move-count.has-profitable { color: var(--green); }
+
+.move-chip .move-kind {
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 0.05rem 0.32rem;
+  border-radius: 3px;
 }
 
 /* ── Responsive ── */

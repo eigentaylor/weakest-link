@@ -1,0 +1,282 @@
+Weakest Link Strategic-Voting Graph -- STAR
+============================================
+
+Each node is (score_rank, tournament): score_rank is the total-star
+order from fewest to most (leftmost candidate misses the automatic
+runoff); tournament is the pairwise winner for each matchup (AB, AC,
+BC), shown winner>loser. Coalition A>B>C sincerely scores 5-x-0.
+Edges are the most generous single-step ballot deviations that hold
+the tournament fixed: boost_B (raise B to 5-4-0), starve_B (bury B to
+5-1-0), starve_A ((x+1)-x-0), or flip_<matchup> (reverse a currently-
+sincere matchup) -- labeled with the move, the move kind (reorder vs
+flip), and the resulting outcome. Node tags: CW = a Condorcet winner
+exists and reaches the runoff; cycle = no Condorcet winner; SQZ = a
+Condorcet winner exists but misses the runoff (center squeeze). No
+real-world STAR elections are tagged (unlike irv_graph_edges.txt) --
+ballot-level score data for a real 3-candidate STAR election isn't
+available for this abstraction. Reference model / proofs:
+star_graph_test.py. Rendered graph: star.html.
+
+NODE ABC|+++  [A<B<C | A>B, A>C, B>C]  outcome: B (SQZ)
+  -> ACB|+++  (boost_B, reorder)  outcome: B
+  -> BAC|+++  (starve_B, reorder)  outcome: A
+  -> ABC|-++  (flip_AB, flip)  outcome: B
+  -> ABC|+-+  (flip_AC, flip)  outcome: B
+  -> ABC|++-  (flip_BC, flip)  outcome: C
+
+NODE ACB|+++  [A<C<B | A>B, A>C, B>C]  outcome: B (SQZ)
+  -> ABC|+++  (starve_B, reorder)  outcome: B
+  -> ACB|-++  (flip_AB, flip)  outcome: B
+  -> ACB|+-+  (flip_AC, flip)  outcome: B
+  -> ACB|++-  (flip_BC, flip)  outcome: C
+
+NODE BAC|+++  [B<A<C | A>B, A>C, B>C]  outcome: A (CW)
+  -> ABC|+++  (boost_B, reorder)  outcome: B
+  -> ABC|+++  (starve_A, reorder)  outcome: B
+  -> BAC|-++  (flip_AB, flip)  outcome: A
+  -> BAC|+-+  (flip_AC, flip)  outcome: C
+  -> BAC|++-  (flip_BC, flip)  outcome: A
+
+NODE BCA|+++  [B<C<A | A>B, A>C, B>C]  outcome: A (CW)
+  -> CBA|+++  (boost_B, reorder)  outcome: A
+  -> BAC|+++  (starve_A, reorder)  outcome: A
+  -> BCA|-++  (flip_AB, flip)  outcome: A
+  -> BCA|+-+  (flip_AC, flip)  outcome: C
+  -> BCA|++-  (flip_BC, flip)  outcome: A
+
+NODE CAB|+++  [C<A<B | A>B, A>C, B>C]  outcome: A (CW)
+  -> CBA|+++  (starve_B, reorder)  outcome: A
+  -> ACB|+++  (starve_A, reorder)  outcome: B
+  -> CAB|-++  (flip_AB, flip)  outcome: B
+  -> CAB|+-+  (flip_AC, flip)  outcome: A
+  -> CAB|++-  (flip_BC, flip)  outcome: A
+
+NODE CBA|+++  [C<B<A | A>B, A>C, B>C]  outcome: A (CW)
+  -> CAB|+++  (boost_B, reorder)  outcome: A
+  -> BCA|+++  (starve_B, reorder)  outcome: A
+  -> CAB|+++  (starve_A, reorder)  outcome: A
+  -> CBA|-++  (flip_AB, flip)  outcome: B
+  -> CBA|+-+  (flip_AC, flip)  outcome: A
+  -> CBA|++-  (flip_BC, flip)  outcome: A
+
+NODE ABC|++-  [A<B<C | A>B, A>C, C>B]  outcome: C (SQZ)
+  -> ACB|++-  (boost_B, reorder)  outcome: C
+  -> BAC|++-  (starve_B, reorder)  outcome: A
+  -> ABC|-+-  (flip_AB, flip)  outcome: C
+  -> ABC|+--  (flip_AC, flip)  outcome: C
+
+NODE ACB|++-  [A<C<B | A>B, A>C, C>B]  outcome: C (SQZ)
+  -> ABC|++-  (starve_B, reorder)  outcome: C
+  -> ACB|-+-  (flip_AB, flip)  outcome: C
+  -> ACB|+--  (flip_AC, flip)  outcome: C
+
+NODE BAC|++-  [B<A<C | A>B, A>C, C>B]  outcome: A (CW)
+  -> ABC|++-  (boost_B, reorder)  outcome: C
+  -> ABC|++-  (starve_A, reorder)  outcome: C
+  -> BAC|-+-  (flip_AB, flip)  outcome: A
+  -> BAC|+--  (flip_AC, flip)  outcome: C
+
+NODE BCA|++-  [B<C<A | A>B, A>C, C>B]  outcome: A (CW)
+  -> CBA|++-  (boost_B, reorder)  outcome: A
+  -> BAC|++-  (starve_A, reorder)  outcome: A
+  -> BCA|-+-  (flip_AB, flip)  outcome: A
+  -> BCA|+--  (flip_AC, flip)  outcome: C
+
+NODE CAB|++-  [C<A<B | A>B, A>C, C>B]  outcome: A (CW)
+  -> CBA|++-  (starve_B, reorder)  outcome: A
+  -> ACB|++-  (starve_A, reorder)  outcome: C
+  -> CAB|-+-  (flip_AB, flip)  outcome: B
+  -> CAB|+--  (flip_AC, flip)  outcome: A
+
+NODE CBA|++-  [C<B<A | A>B, A>C, C>B]  outcome: A (CW)
+  -> CAB|++-  (boost_B, reorder)  outcome: A
+  -> BCA|++-  (starve_B, reorder)  outcome: A
+  -> CAB|++-  (starve_A, reorder)  outcome: A
+  -> CBA|-+-  (flip_AB, flip)  outcome: B
+  -> CBA|+--  (flip_AC, flip)  outcome: A
+
+NODE ABC|+-+  [A<B<C | A>B, C>A, B>C]  outcome: B (cycle)
+  -> ACB|+-+  (boost_B, reorder)  outcome: B
+  -> BAC|+-+  (starve_B, reorder)  outcome: C
+  -> ABC|--+  (flip_AB, flip)  outcome: B
+  -> ABC|+--  (flip_BC, flip)  outcome: C
+
+NODE ACB|+-+  [A<C<B | A>B, C>A, B>C]  outcome: B (cycle)
+  -> ABC|+-+  (starve_B, reorder)  outcome: B
+  -> ACB|--+  (flip_AB, flip)  outcome: B
+  -> ACB|+--  (flip_BC, flip)  outcome: C
+
+NODE BAC|+-+  [B<A<C | A>B, C>A, B>C]  outcome: C (cycle)
+  -> ABC|+-+  (boost_B, reorder)  outcome: B
+  -> ABC|+-+  (starve_A, reorder)  outcome: B
+  -> BAC|--+  (flip_AB, flip)  outcome: C
+  -> BAC|+--  (flip_BC, flip)  outcome: C
+
+NODE BCA|+-+  [B<C<A | A>B, C>A, B>C]  outcome: C (cycle)
+  -> CBA|+-+  (boost_B, reorder)  outcome: A
+  -> BAC|+-+  (starve_A, reorder)  outcome: C
+  -> BCA|--+  (flip_AB, flip)  outcome: C
+  -> BCA|+--  (flip_BC, flip)  outcome: C
+
+NODE CAB|+-+  [C<A<B | A>B, C>A, B>C]  outcome: A (cycle)
+  -> CBA|+-+  (starve_B, reorder)  outcome: A
+  -> ACB|+-+  (starve_A, reorder)  outcome: B
+  -> CAB|--+  (flip_AB, flip)  outcome: B
+  -> CAB|+--  (flip_BC, flip)  outcome: A
+
+NODE CBA|+-+  [C<B<A | A>B, C>A, B>C]  outcome: A (cycle)
+  -> CAB|+-+  (boost_B, reorder)  outcome: A
+  -> BCA|+-+  (starve_B, reorder)  outcome: C
+  -> CAB|+-+  (starve_A, reorder)  outcome: A
+  -> CBA|--+  (flip_AB, flip)  outcome: B
+  -> CBA|+--  (flip_BC, flip)  outcome: A
+
+NODE ABC|+--  [A<B<C | A>B, C>A, C>B]  outcome: C (CW)
+  -> ACB|+--  (boost_B, reorder)  outcome: C
+  -> BAC|+--  (starve_B, reorder)  outcome: C
+  -> ABC|---  (flip_AB, flip)  outcome: C
+
+NODE ACB|+--  [A<C<B | A>B, C>A, C>B]  outcome: C (CW)
+  -> ABC|+--  (starve_B, reorder)  outcome: C
+  -> ACB|---  (flip_AB, flip)  outcome: C
+
+NODE BAC|+--  [B<A<C | A>B, C>A, C>B]  outcome: C (CW)
+  -> ABC|+--  (boost_B, reorder)  outcome: C
+  -> ABC|+--  (starve_A, reorder)  outcome: C
+  -> BAC|---  (flip_AB, flip)  outcome: C
+
+NODE BCA|+--  [B<C<A | A>B, C>A, C>B]  outcome: C (CW)
+  -> CBA|+--  (boost_B, reorder)  outcome: A
+  -> BAC|+--  (starve_A, reorder)  outcome: C
+  -> BCA|---  (flip_AB, flip)  outcome: C
+
+NODE CAB|+--  [C<A<B | A>B, C>A, C>B]  outcome: A (SQZ)
+  -> CBA|+--  (starve_B, reorder)  outcome: A
+  -> ACB|+--  (starve_A, reorder)  outcome: C
+  -> CAB|---  (flip_AB, flip)  outcome: B
+
+NODE CBA|+--  [C<B<A | A>B, C>A, C>B]  outcome: A (SQZ)
+  -> CAB|+--  (boost_B, reorder)  outcome: A
+  -> BCA|+--  (starve_B, reorder)  outcome: C
+  -> CAB|+--  (starve_A, reorder)  outcome: A
+  -> CBA|---  (flip_AB, flip)  outcome: B
+
+NODE ABC|-++  [A<B<C | B>A, A>C, B>C]  outcome: B (CW)
+  -> ACB|-++  (boost_B, reorder)  outcome: B
+  -> BAC|-++  (starve_B, reorder)  outcome: A
+  -> ABC|--+  (flip_AC, flip)  outcome: B
+  -> ABC|-+-  (flip_BC, flip)  outcome: C
+
+NODE ACB|-++  [A<C<B | B>A, A>C, B>C]  outcome: B (CW)
+  -> ABC|-++  (starve_B, reorder)  outcome: B
+  -> ACB|--+  (flip_AC, flip)  outcome: B
+  -> ACB|-+-  (flip_BC, flip)  outcome: C
+
+NODE BAC|-++  [B<A<C | B>A, A>C, B>C]  outcome: A (SQZ)
+  -> ABC|-++  (boost_B, reorder)  outcome: B
+  -> ABC|-++  (starve_A, reorder)  outcome: B
+  -> BAC|--+  (flip_AC, flip)  outcome: C
+  -> BAC|-+-  (flip_BC, flip)  outcome: A
+
+NODE BCA|-++  [B<C<A | B>A, A>C, B>C]  outcome: A (SQZ)
+  -> CBA|-++  (boost_B, reorder)  outcome: B
+  -> BAC|-++  (starve_A, reorder)  outcome: A
+  -> BCA|--+  (flip_AC, flip)  outcome: C
+  -> BCA|-+-  (flip_BC, flip)  outcome: A
+
+NODE CAB|-++  [C<A<B | B>A, A>C, B>C]  outcome: B (CW)
+  -> CBA|-++  (starve_B, reorder)  outcome: B
+  -> ACB|-++  (starve_A, reorder)  outcome: B
+  -> CAB|--+  (flip_AC, flip)  outcome: B
+  -> CAB|-+-  (flip_BC, flip)  outcome: B
+
+NODE CBA|-++  [C<B<A | B>A, A>C, B>C]  outcome: B (CW)
+  -> CAB|-++  (boost_B, reorder)  outcome: B
+  -> BCA|-++  (starve_B, reorder)  outcome: A
+  -> CAB|-++  (starve_A, reorder)  outcome: B
+  -> CBA|--+  (flip_AC, flip)  outcome: B
+  -> CBA|-+-  (flip_BC, flip)  outcome: B
+
+NODE ABC|-+-  [A<B<C | B>A, A>C, C>B]  outcome: C (cycle)
+  -> ACB|-+-  (boost_B, reorder)  outcome: C
+  -> BAC|-+-  (starve_B, reorder)  outcome: A
+  -> ABC|---  (flip_AC, flip)  outcome: C
+
+NODE ACB|-+-  [A<C<B | B>A, A>C, C>B]  outcome: C (cycle)
+  -> ABC|-+-  (starve_B, reorder)  outcome: C
+  -> ACB|---  (flip_AC, flip)  outcome: C
+
+NODE BAC|-+-  [B<A<C | B>A, A>C, C>B]  outcome: A (cycle)
+  -> ABC|-+-  (boost_B, reorder)  outcome: C
+  -> ABC|-+-  (starve_A, reorder)  outcome: C
+  -> BAC|---  (flip_AC, flip)  outcome: C
+
+NODE BCA|-+-  [B<C<A | B>A, A>C, C>B]  outcome: A (cycle)
+  -> CBA|-+-  (boost_B, reorder)  outcome: B
+  -> BAC|-+-  (starve_A, reorder)  outcome: A
+  -> BCA|---  (flip_AC, flip)  outcome: C
+
+NODE CAB|-+-  [C<A<B | B>A, A>C, C>B]  outcome: B (cycle)
+  -> CBA|-+-  (starve_B, reorder)  outcome: B
+  -> ACB|-+-  (starve_A, reorder)  outcome: C
+  -> CAB|---  (flip_AC, flip)  outcome: B
+
+NODE CBA|-+-  [C<B<A | B>A, A>C, C>B]  outcome: B (cycle)
+  -> CAB|-+-  (boost_B, reorder)  outcome: B
+  -> BCA|-+-  (starve_B, reorder)  outcome: A
+  -> CAB|-+-  (starve_A, reorder)  outcome: B
+  -> CBA|---  (flip_AC, flip)  outcome: B
+
+NODE ABC|--+  [A<B<C | B>A, C>A, B>C]  outcome: B (CW)
+  -> ACB|--+  (boost_B, reorder)  outcome: B
+  -> BAC|--+  (starve_B, reorder)  outcome: C
+  -> ABC|---  (flip_BC, flip)  outcome: C
+
+NODE ACB|--+  [A<C<B | B>A, C>A, B>C]  outcome: B (CW)
+  -> ABC|--+  (starve_B, reorder)  outcome: B
+  -> ACB|---  (flip_BC, flip)  outcome: C
+
+NODE BAC|--+  [B<A<C | B>A, C>A, B>C]  outcome: C (SQZ)
+  -> ABC|--+  (boost_B, reorder)  outcome: B
+  -> ABC|--+  (starve_A, reorder)  outcome: B
+  -> BAC|---  (flip_BC, flip)  outcome: C
+
+NODE BCA|--+  [B<C<A | B>A, C>A, B>C]  outcome: C (SQZ)
+  -> CBA|--+  (boost_B, reorder)  outcome: B
+  -> BAC|--+  (starve_A, reorder)  outcome: C
+  -> BCA|---  (flip_BC, flip)  outcome: C
+
+NODE CAB|--+  [C<A<B | B>A, C>A, B>C]  outcome: B (CW)
+  -> CBA|--+  (starve_B, reorder)  outcome: B
+  -> ACB|--+  (starve_A, reorder)  outcome: B
+  -> CAB|---  (flip_BC, flip)  outcome: B
+
+NODE CBA|--+  [C<B<A | B>A, C>A, B>C]  outcome: B (CW)
+  -> CAB|--+  (boost_B, reorder)  outcome: B
+  -> BCA|--+  (starve_B, reorder)  outcome: C
+  -> CAB|--+  (starve_A, reorder)  outcome: B
+  -> CBA|---  (flip_BC, flip)  outcome: B
+
+NODE ABC|---  [A<B<C | B>A, C>A, C>B]  outcome: C (CW)
+  -> ACB|---  (boost_B, reorder)  outcome: C
+  -> BAC|---  (starve_B, reorder)  outcome: C
+
+NODE ACB|---  [A<C<B | B>A, C>A, C>B]  outcome: C (CW)
+  -> ABC|---  (starve_B, reorder)  outcome: C
+
+NODE BAC|---  [B<A<C | B>A, C>A, C>B]  outcome: C (CW)
+  -> ABC|---  (boost_B, reorder)  outcome: C
+  -> ABC|---  (starve_A, reorder)  outcome: C
+
+NODE BCA|---  [B<C<A | B>A, C>A, C>B]  outcome: C (CW)
+  -> CBA|---  (boost_B, reorder)  outcome: B
+  -> BAC|---  (starve_A, reorder)  outcome: C
+
+NODE CAB|---  [C<A<B | B>A, C>A, C>B]  outcome: B (SQZ)
+  -> CBA|---  (starve_B, reorder)  outcome: B
+  -> ACB|---  (starve_A, reorder)  outcome: C
+
+NODE CBA|---  [C<B<A | B>A, C>A, C>B]  outcome: B (SQZ)
+  -> CAB|---  (boost_B, reorder)  outcome: B
+  -> BCA|---  (starve_B, reorder)  outcome: C
+  -> CAB|---  (starve_A, reorder)  outcome: B

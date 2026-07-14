@@ -3,11 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>3D Surface — The Weakest Link</title>
+  <title>STAR Deviation Graph — The Weakest Link</title>
   <link rel="stylesheet" href="style.css">
-  <style>
-    #graph-container canvas { display: block; }
-  </style>
 </head>
 <body class="graph-page">
 
@@ -15,46 +12,42 @@
   <a href="index.html" class="site-title">The Weakest Link</a>
   <a href="index.html" id="explorer-link">Explorer</a>
   <a href="graph.html">Deviation Graph</a>
-  <a href="3d.html" class="active">3D Surface</a>
+  <a href="3d.html">3D Surface</a>
   <a href="IRV.html">IRV Graph</a>
-  <a href="star.html">STAR Graph</a>
+  <a href="star.html" class="active">STAR Graph</a>
   <span class="spacer"></span>
-  <a href="minimax_graph_test.py" target="_blank">source.py</a>
+  <a href="star_graph_test.py" target="_blank">source.py</a>
 </nav>
 
 <div class="graph-toolbar">
   <button id="toggle-edges-btn" class="toolbar-btn active">Profitable edges only</button>
   <button id="toggle-minimal-btn" class="toolbar-btn active">Multi step</button>
-  <button id="reset-camera-btn" class="toolbar-btn">Reset camera</button>
+  <button id="toggle-tournament-btn" class="toolbar-btn">Tournament deviations</button>
   <button id="legend-toggle-btn" class="toolbar-btn legend-toggle-btn" aria-expanded="false">Legend</button>
   <div class="legend">
     <span class="legend-item"><span class="legend-dot" style="background:var(--a)"></span> A wins</span>
     <span class="legend-item"><span class="legend-dot" style="background:var(--b)"></span> B wins</span>
     <span class="legend-item"><span class="legend-dot" style="background:var(--c)"></span> C wins</span>
-    <span style="color:var(--muted);margin-left:.5rem">◆ = profitable deviation exists</span>
-    <span style="color:var(--muted)">height = graph depth (sources high, sinks low)</span>
+    <span style="color:var(--muted);margin-left:.5rem">◇ = profitable deviation exists</span>
+    <span style="color:var(--muted)">dashed = cycle &nbsp;·&nbsp; dotted = center squeeze (CW cut before runoff) &nbsp;·&nbsp; solid = CW wins</span>
     <span style="color:var(--green)">— →A</span>
     <span style="color:var(--yellow)">— →B</span>
-    <span style="color:var(--muted)">drag to rotate · scroll to zoom · click a node to open it in the Explorer</span>
+    <span style="color:var(--muted)">coalition sincerely scores 5-x-0; edges are the most generous ballot deviations that hold the tournament fixed</span>
+    <span style="color:var(--muted)">"Tournament deviations" (off by default) adds flip_* moves — proven never profitable on their own, shown for connectivity only</span>
     <span style="color:var(--muted)">hold Ctrl while hovering = direct predecessors · Ctrl+Shift = all ancestors</span>
   </div>
 </div>
 
-<div id="graph-container"></div>
+<div id="graph-container">
+  <svg id="graph-svg"></svg>
+</div>
 
 <div id="tooltip"></div>
 
-<script type="importmap">
-{
-  "imports": {
-    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
-  }
-}
-</script>
 <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
-<script type="module" src="graph3d.js"></script>
+<script type="module" src="graph_star.js"></script>
 <script>
+  // Restore explorer state in the nav link from sessionStorage
   document.addEventListener('DOMContentLoaded', () => {
     const saved = sessionStorage.getItem('explorerHash');
     if (saved) {

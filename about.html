@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>About — The Weakest Link</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .about-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .about-section h2 {
+      font-size: 1.15rem;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+      margin-bottom: 0.75rem;
+    }
+    .about-section p {
+      color: var(--text);
+      font-size: 0.9rem;
+      margin-bottom: 0.9rem;
+    }
+    .about-section p:last-child { margin-bottom: 0; }
+    .about-section code {
+      font-family: 'Fira Mono', 'Cascadia Code', monospace;
+      font-size: 0.85rem;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 0.05rem 0.35rem;
+    }
+    .archetype-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+      margin: 0.9rem 0;
+    }
+    .archetype-list li {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.7rem 0.9rem;
+      font-size: 0.85rem;
+    }
+    .archetype-list strong { color: var(--accent); }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="site-title">The Weakest Link</a>
+  <a href="index.html">Explorer</a>
+  <a href="graph.html">Deviation Graph</a>
+  <a href="3d.html">3D Surface</a>
+  <a href="IRV.html">IRV Graph</a>
+  <a href="star.html">STAR Graph</a>
+  <span class="spacer"></span>
+  <a href="about.html" class="active">About</a>
+</nav>
+
+<div class="container">
+
+  <div class="page-header">
+    <h1>About These Models</h1>
+    <p class="subtitle">What each graph is actually showing, and how strategic voting is modeled in each system.</p>
+  </div>
+
+  <div class="about-section">
+    <h2>Minimax (Condorcet)</h2>
+    <p>
+      In a Condorcet-style pairwise system, a sincere ballot of <code>A&gt;B&gt;C</code> is really three
+      separate pairwise votes cast at once: A beats B, A beats C, and B beats C. States in the graph are
+      named by the ranked list of these matchup margins, smallest first — for example
+      <code>⟨A→B ∣ B→C ∣ C→A⟩</code> means A's win over B is the narrowest margin, B's win over C is
+      larger, and C's win over A is the largest. If a Condorcet winner exists (someone who wins both of
+      their matchups), they win outright. Otherwise the three candidates form a cycle, and the winner is
+      decided by the <strong>weakest link</strong>: whoever lost their closest matchup by the smallest margin.
+    </p>
+    <p>
+      An insincere deviation here just means reversing one of your three pairwise votes — voting
+      <code>B&gt;A</code>, <code>C&gt;A</code>, or <code>C&gt;B</code> instead of your true preference. A
+      coalition doing this can either weaken a matchup they'd otherwise win comfortably (<em>concordant</em>
+      with their sincere preference) or strengthen one they'd otherwise lose (<em>discordant</em>). It turns
+      out this is only ever profitable from exactly two cyclic states — the "gates" — with four further
+      states able to reach a gate through a longer chain of moves.
+    </p>
+  </div>
+
+  <div class="about-section">
+    <h2>IRV (Ranked-Choice)</h2>
+    <p>
+      Instant-runoff nodes track two things at once: an ordering of first-place vote totals, and an
+      underlying pairwise "tournament" between the candidates. These don't have to agree — first-place
+      votes don't necessarily predict who wins head-to-head. (In Burlington's 2009 mayoral election, Kurt
+      Wright led in first-choice votes but lost both of his pairwise matchups.) A node looks like
+      <code>⟨X&lt;Y&lt;Z ∣ X→Y, Y→Z, X→Z⟩</code>: X has the fewest first-place votes and is eliminated
+      first, their votes transfer, and the winner is whoever wins the resulting head-to-head — Y if Y
+      beats Z, otherwise Z.
+    </p>
+    <p>
+      A sincere ballot <code>A&gt;B&gt;C</code> does two things simultaneously: it adds to A's first-place
+      total, and it feeds the tournament (contributing to A beating B, A beating C, and C beating A). As
+      with minimax, a deviation can shift either piece independently — flip a tournament matchup, or change
+      your declared first choice. Changing your first choice can do one of two things: drop a candidate
+      below whoever they were just ahead of, or, if two candidates are close in votes, swap their order.
+      Real elections correlate first-place strength with pairwise strength, but here we deliberately treat
+      them as fully independent so we can map every manipulation that could be optimal for a coalition
+      under the most favorable conditions — the worst case for the system.
+    </p>
+  </div>
+
+  <div class="about-section">
+    <h2>STAR Voting</h2>
+    <p>
+      STAR nodes share the same structure as IRV — a vote-total ordering plus a tournament, written the
+      same way <code>⟨X&lt;Y&lt;Z ∣ X→Y, Y→Z, X→Z⟩</code>, with the same winner rule (Y if Y beats Z, else
+      Z), except here the ordering is by total score and the runoff is between the two highest scorers.
+    </p>
+    <p>
+      We assume a coalition sincerely prefers <code>A&gt;B&gt;C</code> and scores their ballots
+      <code>5-x-0</code>, for some star rating <code>x</code> strictly between 0 and 5 that may vary voter
+      to voter. To map the full range of possible manipulation, the coalition can switch to one of three
+      insincere scoring patterns:
+    </p>
+    <ul class="archetype-list">
+      <li><strong>5-4-0</strong> — inflate B's score</li>
+      <li><strong>5-1-0</strong> — starve B of stars</li>
+      <li><strong>(x+1)-x-0</strong> — starve A instead, just enough to edge out the original score</li>
+    </ul>
+    <p>
+      All three preserve the tournament margins exactly, while still letting the coalition manipulate who
+      makes the runoff. The only adjacent swap in total score these moves can't produce is moving A above
+      C when C was just ahead of A. This makes STAR's manipulable surface strictly larger than IRV's: by
+      flooding or starving a candidate of stars, a coalition can force almost any adjacent swap in the
+      score ranking while leaving the tournament margins completely untouched.
+    </p>
+  </div>
+
+</div>
+
+</body>
+</html>

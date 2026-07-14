@@ -2,8 +2,9 @@
 
 // Shared "isolate a move" feature for the deviation graph pages (graph.js /
 // graph_star.js / graph_irv.js). Click a move chip to pin its edges glowing
-// (full-bright regardless of the "profitable edges only" toggle) and dim
-// everything else, with a live N-profitable/M-total count per move. This is
+// and dim everything else, with a live N-profitable/M-total count per move.
+// Isolation respects the "profitable edges only" toggle (see apply() below)
+// rather than always forcing the thin non-profitable layer visible. This is
 // the one piece of the render pipeline that's genuinely identical across all
 // three pages — the rest (hover BFS, tooltip content, node shapes) diverges
 // enough per voting method that it's kept separate rather than unified here.
@@ -56,13 +57,21 @@ export function createMoveIsolation({ getNeighbours, isProfitable, profitColor, 
   // Re-style the two edge selections in place. Call after (re)building them
   // in render(), and again after any toggle that changes which edges are
   // visible without a full render() (e.g. the "profitable edges only" button).
+  // Isolation respects "profitable edges only": when that toggle is on, the
+  // thin non-profitable layer stays fully hidden (matching or not) — a move
+  // with zero profitable edges then correctly glows nothing at all.
   function apply(allEdgeEls, profitEdgeEls, showAllEdges) {
     if (isolatedMoves.size > 0) {
-      allEdgeEls
-        .attr('stroke', d => matches(d) ? '#ffffff' : '#3d4466')
-        .attr('stroke-width', d => matches(d) ? 2.2 : 0.8)
-        .attr('stroke-opacity', d => matches(d) ? 0.95 : 0.05)
-        .style('filter', d => matches(d) ? 'drop-shadow(0 0 5px #fff)' : null);
+      if (showAllEdges) {
+        allEdgeEls
+          .attr('stroke', d => matches(d) ? '#ffffff' : '#3d4466')
+          .attr('stroke-width', d => matches(d) ? 2.2 : 0.8)
+          .attr('stroke-opacity', d => matches(d) ? 0.95 : 0.05)
+          .style('filter', d => matches(d) ? 'drop-shadow(0 0 5px #fff)' : null);
+      } else {
+        allEdgeEls.attr('stroke', '#3d4466').attr('stroke-width', 0.8)
+          .attr('stroke-opacity', 0).style('filter', null);
+      }
       profitEdgeEls
         .attr('stroke-width', d => matches(d) ? 3.5 : 2)
         .attr('stroke-opacity', d => matches(d) ? 1 : 0.05)

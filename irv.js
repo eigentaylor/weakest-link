@@ -247,6 +247,18 @@ for (const s of allStates) {
 
 // Pre-compute all state data (mirrors minimax.js's stateData shape/fields so
 // graph_irv.js can reuse graph.js's rendering logic almost verbatim).
+// Every profitable/multi-step field is precomputed in two variants — Core
+// (swap_* moves only) and Full (swap_* + flip_* moves) — so graph_irv.js's
+// "Tournament deviations" toggle can switch between them instantly with no
+// rebuild. Single-step profitability is always identical between Core and
+// Full (flip is proven never profitable — see FLIP-PROFITABILITY PROOF in
+// irv_graph_test.py), but the multi-step *reachable-target* sets can still
+// differ: a flip can be a neutral (never profitable, but not worse either)
+// detour that changes the tournament axis before a later swap_* step, which
+// star.js's richer model showed matters in general — verified empirically
+// for IRV too, where it turns out to affect which specific nodes are
+// reachable (though never whether a state is profitable at all, nor the
+// best reachable outcome — both proven state-independent of flip already).
 const stateData = new Map();
 
 for (const s of allStates) {
@@ -261,18 +273,26 @@ for (const s of allStates) {
     minimalNeighbours.push({ newState, label, mid, kind, winner: nw, key: nk });
   }
 
-  const minimalProfitableDeviations = [];
-  if (w !== 'A') {
+  function profitableAmong(neighbours) {
+    if (w === 'A') return [];
     const u0 = PREF[w];
-    for (const dev of minimalNeighbours) {
+    const out = [];
+    for (const dev of neighbours) {
       if (PREF[dev.winner] > u0) {
-        dev.profitable = true;
-        dev.hops = 1;
-        dev.path = [{ label: dev.label, key: dev.key, winner: dev.winner }];
-        minimalProfitableDeviations.push(dev);
+        out.push({
+          ...dev,
+          profitable: true,
+          hops: 1,
+          path: [{ label: dev.label, key: dev.key, winner: dev.winner }],
+        });
       }
     }
+    return out;
   }
+
+  const reorderNeighbours = minimalNeighbours.filter(n => n.kind === 'reorder');
+  const minimalProfitableDeviationsCore = profitableAmong(reorderNeighbours);
+  const minimalProfitableDeviationsFull = profitableAmong(minimalNeighbours);
 
   stateData.set(key, {
     state: s,
@@ -284,55 +304,68 @@ for (const s of allStates) {
     descVotes: formatVotesRank(s),
     descTournament: formatTournament(s),
     minimalNeighbours,
-    minimalProfitableDeviations,
-    anyMinimalProfitable: minimalProfitableDeviations.length > 0,
+    minimalProfitableDeviationsCore,
+    minimalProfitableDeviationsFull,
+    anyMinimalProfitableCore: minimalProfitableDeviationsCore.length > 0,
+    anyMinimalProfitableFull: minimalProfitableDeviationsFull.length > 0,
     realExample: REAL_EXAMPLES[key] || null,
   });
 }
 
 // Second pass: monotone multi-step reachability over the neighboursMinimal
-// graph — identical algorithm to minimax.js. (The Python reference model
-// found this adds zero power beyond single-step for IRV: every multi-step
-// path collapses to a 1-hop profitable edge. Kept anyway for UI/toggle
-// parity with the minimax graph page and in case the model is extended.)
-for (const [startKey, startData] of stateData) {
-  const u0 = PREF[startData.winner];
-  const parent = new Map();
-  parent.set(startKey, { parentKey: null, label: null, hops: 0 });
-  const queue = [startKey];
-  while (queue.length) {
-    const curKey = queue.shift();
-    const curInfo = parent.get(curKey);
-    const curPref = PREF[stateData.get(curKey).winner];
-    for (const nb of stateData.get(curKey).minimalNeighbours) {
-      if (parent.has(nb.key)) continue;
-      if (PREF[nb.winner] < curPref) continue;
-      parent.set(nb.key, { parentKey: curKey, label: nb.label, hops: curInfo.hops + 1 });
-      queue.push(nb.key);
+// graph — identical algorithm to minimax.js, run twice (Core: swap_* edges
+// only; Full: swap_* + flip_* edges).
+function buildMultiStep(includeFlip) {
+  const result = new Map();
+  for (const [startKey, startData] of stateData) {
+    const u0 = PREF[startData.winner];
+    const parent = new Map();
+    parent.set(startKey, { parentKey: null, label: null, hops: 0 });
+    const queue = [startKey];
+    while (queue.length) {
+      const curKey = queue.shift();
+      const curInfo = parent.get(curKey);
+      const curPref = PREF[stateData.get(curKey).winner];
+      const neighbours = stateData.get(curKey).minimalNeighbours
+        .filter(n => includeFlip || n.kind === 'reorder');
+      for (const nb of neighbours) {
+        if (parent.has(nb.key)) continue;
+        if (PREF[nb.winner] < curPref) continue;
+        parent.set(nb.key, { parentKey: curKey, label: nb.label, hops: curInfo.hops + 1 });
+        queue.push(nb.key);
+      }
     }
-  }
 
-  const multiStepProfitableDeviations = [];
-  for (const [key, info] of parent) {
-    if (key === startKey) continue;
-    const targetData = stateData.get(key);
-    if (PREF[targetData.winner] <= u0) continue;
-    const path = [];
-    let cur = key;
-    while (cur !== startKey) {
-      const { parentKey, label } = parent.get(cur);
-      path.unshift({ label, key: cur, winner: stateData.get(cur).winner });
-      cur = parentKey;
+    const multiStepProfitableDeviations = [];
+    for (const [key, info] of parent) {
+      if (key === startKey) continue;
+      const targetData = stateData.get(key);
+      if (PREF[targetData.winner] <= u0) continue;
+      const path = [];
+      let cur = key;
+      while (cur !== startKey) {
+        const { parentKey, label } = parent.get(cur);
+        path.unshift({ label, key: cur, winner: stateData.get(cur).winner });
+        cur = parentKey;
+      }
+      multiStepProfitableDeviations.push({
+        key,
+        winner: targetData.winner,
+        newState: targetData.state,
+        hops: info.hops,
+        path,
+      });
     }
-    multiStepProfitableDeviations.push({
-      key,
-      winner: targetData.winner,
-      newState: targetData.state,
-      hops: info.hops,
-      path,
-    });
+    result.set(startKey, multiStepProfitableDeviations);
   }
-  startData.multiStepProfitableDeviations = multiStepProfitableDeviations;
+  return result;
+}
+
+const multiStepCore = buildMultiStep(false);
+const multiStepFull = buildMultiStep(true);
+for (const [key, data] of stateData) {
+  data.multiStepProfitableDeviationsCore = multiStepCore.get(key);
+  data.multiStepProfitableDeviationsFull = multiStepFull.get(key);
 }
 
 export {

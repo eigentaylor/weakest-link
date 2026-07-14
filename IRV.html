@@ -22,6 +22,7 @@
 <div class="graph-toolbar">
   <button id="toggle-edges-btn" class="toolbar-btn active">Profitable edges only</button>
   <button id="toggle-minimal-btn" class="toolbar-btn active">Multi step</button>
+  <button id="toggle-tournament-btn" class="toolbar-btn">Tournament deviations</button>
   <button id="legend-toggle-btn" class="toolbar-btn legend-toggle-btn" aria-expanded="false">Legend</button>
   <div class="legend">
     <span class="legend-item"><span class="legend-dot" style="background:var(--a)"></span> A wins</span>
@@ -31,7 +32,7 @@
     <span style="color:var(--muted)">dashed = cycle &nbsp;·&nbsp; dotted = center squeeze (CW eliminated) &nbsp;·&nbsp; solid = CW wins</span>
     <span style="color:var(--green)">— →A</span>
     <span style="color:var(--yellow)">— →B</span>
-    <span style="color:var(--muted)">flip_* edges are never profitable (proof in source.py) — shown for connectivity only</span>
+    <span style="color:var(--muted)">"Tournament deviations" (off by default) adds flip_* moves — proven never profitable on their own, shown for connectivity only</span>
     <span style="color:#818cf8">◈ thick accent ring = maps onto a real election (Burlington 2009 / Alaska 2022) — hover for details</span>
     <span style="color:var(--muted)">hold Ctrl while hovering = direct predecessors · Ctrl+Shift = all ancestors</span>
   </div>

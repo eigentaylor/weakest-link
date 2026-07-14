@@ -11,6 +11,7 @@ const PROFIT_COLOR = { A: '#34d399', B: '#fde68a' };
 // ── State ─────────────────────────────────────────────────────────────────────
 let showAllEdges = true;    // toggle: show all deviation edges (default on)
 let showMinimalEdges = true; // toggle: single-step edges only
+let showTournamentDeviations = false; // toggle: include flip_* moves (default OFF)
 let hoveredNode = null;
 let ctrlDown = false, shiftDown = false; // hover-direction modifiers
 
@@ -29,6 +30,23 @@ function getVisible() {
   return allStates;
 }
 
+// A node's precomputed stateData carries both a Core (swap_* moves only)
+// and a Full (swap_* + flip_* moves) variant of every profitable/
+// multi-step field — pick whichever the "Tournament deviations" toggle
+// currently calls for, with no rebuild needed.
+function minimalProfitable(data) {
+  return showTournamentDeviations ? data.anyMinimalProfitableFull : data.anyMinimalProfitableCore;
+}
+function multiStepDeviations(data) {
+  return showTournamentDeviations ? data.multiStepProfitableDeviationsFull : data.multiStepProfitableDeviationsCore;
+}
+function minimalDeviations(data) {
+  return showTournamentDeviations ? data.minimalProfitableDeviationsFull : data.minimalProfitableDeviationsCore;
+}
+function visibleNeighbours(data) {
+  return showTournamentDeviations ? data.minimalNeighbours : data.minimalNeighbours.filter(n => n.kind === 'reorder');
+}
+
 function buildData() {
   const visible = getVisible();
   const visibleKeys = new Set(visible.map(s => stateKey(s)));
@@ -37,8 +55,8 @@ function buildData() {
     const key = stateKey(s);
     const data = stateData.get(key);
     const profitable = showMinimalEdges
-      ? data.anyMinimalProfitable
-      : data.multiStepProfitableDeviations.length > 0;
+      ? minimalProfitable(data)
+      : multiStepDeviations(data).length > 0;
     return {
       id: key,
       state: s,
@@ -51,23 +69,26 @@ function buildData() {
 
   const nodeById = new Map(nodes.map(n => [n.id, n]));
 
-  // All deviation edges — always the atomic single-step (neighboursMinimal) graph.
+  // All deviation edges — the atomic single-step graph, filtered to
+  // swap_*-only moves unless "Tournament deviations" is toggled on.
   allLinks = [];
   for (const n of nodes) {
-    for (const nb of n.data.minimalNeighbours) {
+    for (const nb of visibleNeighbours(n.data)) {
       const target = nodeById.get(nb.key);
       if (target) allLinks.push({ source: n, target, label: nb.label, w: nb.winner });
     }
   }
 
-  // Profitable edges (string IDs → forceLink resolves them). Single step = direct
-  // one-hop improvements; multi step = monotone (never-worse) chains that end in a
-  // strict improvement. For IRV, the reference model (irv_graph_test.py) found
-  // multi-step never exceeds single-step, so these two sets coincide exactly —
-  // the toggle is kept for UI parity with the minimax graph page.
+  // Profitable edges (string IDs → forceLink resolves them). Single step =
+  // direct one-hop improvements; multi step = monotone (never-worse) chains
+  // that end in a strict improvement. For IRV, the reference model
+  // (irv_graph_test.py) found multi-step never exceeds single-step in
+  // aggregate power, so this toggle mostly matters for UI parity with the
+  // STAR graph page — though the exact multi-hop paths shown can still
+  // shift depending on whether flip_* detours are allowed.
   profitLinks = [];
   for (const n of nodes) {
-    const devs = showMinimalEdges ? n.data.minimalProfitableDeviations : n.data.multiStepProfitableDeviations;
+    const devs = showMinimalEdges ? minimalDeviations(n.data) : multiStepDeviations(n.data);
     for (const dev of devs) {
       if (visibleKeys.has(dev.key)) {
         profitLinks.push({ source: n.id, target: dev.key, w: dev.winner, hops: dev.hops, dashed: dev.hops > 1 });
@@ -349,7 +370,7 @@ function showTooltip(d, mode = 'descendants') {
     : '';
 
   const byOutcome = { A: {}, B: {}, C: {} };
-  for (const nb of d.data.minimalNeighbours) {
+  for (const nb of visibleNeighbours(d.data)) {
     const bucket = byOutcome[nb.winner];
     const key = `${nb.label}|${nb.kind}`;
     if (!bucket[key]) bucket[key] = { label: nb.label, kind: nb.kind, count: 0 };
@@ -367,8 +388,9 @@ function showTooltip(d, mode = 'descendants') {
   }).join('');
 
   let multiStepHtml = '';
-  if (!showMinimalEdges && d.data.multiStepProfitableDeviations.length) {
-    const items = [...d.data.multiStepProfitableDeviations]
+  const multiStepDevs = multiStepDeviations(d.data);
+  if (!showMinimalEdges && multiStepDevs.length) {
+    const items = [...multiStepDevs]
       .sort((a, b) => a.hops - b.hops)
       .map(t => {
         const pathStr = t.path.map(p => p.label).join(' → ');
@@ -440,6 +462,13 @@ document.getElementById('toggle-minimal-btn').addEventListener('click', function
   showMinimalEdges = !showMinimalEdges;
   this.textContent = showMinimalEdges ? 'Multi step' : 'Single step';
   this.classList.toggle('active', showMinimalEdges);
+  hoveredNode = null;
+  render();
+});
+
+document.getElementById('toggle-tournament-btn').addEventListener('click', function() {
+  showTournamentDeviations = !showTournamentDeviations;
+  this.classList.toggle('active', showTournamentDeviations);
   hoveredNode = null;
   render();
 });

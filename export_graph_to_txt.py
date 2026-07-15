@@ -1,6 +1,7 @@
 """
 export_graph_to_txt.py — regenerates graph_edges.txt (minimax),
-irv_graph_edges.txt (IRV), and star_graph_edges.txt (STAR) from each
+irv_graph_edges.txt (IRV), star_graph_edges.txt (STAR), and
+profitable_summary.txt (cross-system manipulation tables) from each
 model's canonical single-step move rules.
 
 Run this (`python export_graph_to_txt.py`) any time any model's move
@@ -66,6 +67,18 @@ def mm_desc(state):
         w, l = (a, b) if d == +1 else (b, a)
         terms.append(f'({w}>{l})')
     return ' > '.join(terms)
+
+
+def mm_desc_latex(state):
+    # Same rank order as mm_desc, in LaTeX: \succ between rank terms (this
+    # IS a ranking, unlike the \to inside each term, which is a single
+    # matchup's winner->loser).
+    terms = []
+    for mid, d in state:
+        a, b = MM_PAIRS[mid]
+        w, l = (a, b) if d == +1 else (b, a)
+        terms.append(f'{w}\\to {l}')
+    return '$\\langle ' + ' \\succ '.join(terms) + ' \\rangle$'
 
 
 def mm_neighbours_minimal(state):
@@ -226,6 +239,18 @@ def irv_desc_ascii(state):
     return f'{votes_part} | ' + ', '.join(tourn_terms)
 
 
+def irv_desc_latex(state):
+    votes_rank, tournament = state
+    dm = dict(zip(IRV_MATCHUPS, tournament))
+    votes_part = '<'.join(votes_rank)
+    tourn_terms = []
+    for mid in IRV_MATCHUPS:
+        a, b = IRV_PAIRS[mid]
+        w, l = (a, b) if dm[mid] == +1 else (b, a)
+        tourn_terms.append(f'{w}\\to {l}')
+    return '$\\langle ' + votes_part + ' \\mid ' + ', '.join(tourn_terms) + ' \\rangle$'
+
+
 def irv_votes_rank_neighbours(votes_rank):
     """Exactly two possible moves (see irv_graph_test.py module docstring):
     swap_A (A with whoever is directly below it, if A isn't last) and
@@ -329,6 +354,16 @@ STAR_SINCERE = {'AB': +1, 'AC': +1, 'BC': +1}
 STAR_MID_OF = {frozenset(STAR_PAIRS[m]): m for m in STAR_MATCHUPS}
 STAR_PREF = {'A': 2, 'B': 1, 'C': 0}   # matches star.js's PREF dict
 
+# Friendly ballot-shape labels, matching star_graph_test.py's MOVE_LABEL.
+STAR_MOVE_LABEL = {
+    'boost_B':  '5-4-0 (boost B)',
+    'starve_B': '5-1-0 (starve B)',
+    'starve_A': '(x+1)-x-0 (starve A)',
+    'flip_AB':  'lie B>A',
+    'flip_AC':  'lie C>A',
+    'flip_BC':  'lie C>B',
+}
+
 
 def star_winner(state):
     score_rank, tournament = state
@@ -376,6 +411,18 @@ def star_desc_ascii(state):
         w, l = (a, b) if dm[mid] == +1 else (b, a)
         tourn_terms.append(f'{w}>{l}')
     return f'{score_part} | ' + ', '.join(tourn_terms)
+
+
+def star_desc_latex(state):
+    score_rank, tournament = state
+    dm = dict(zip(STAR_MATCHUPS, tournament))
+    score_part = '<'.join(score_rank)
+    tourn_terms = []
+    for mid in STAR_MATCHUPS:
+        a, b = STAR_PAIRS[mid]
+        w, l = (a, b) if dm[mid] == +1 else (b, a)
+        tourn_terms.append(f'{w}\\to {l}')
+    return '$\\langle ' + score_part + ' \\mid ' + ', '.join(tourn_terms) + ' \\rangle$'
 
 
 def star_score_rank_neighbours(score_rank):
@@ -468,12 +515,236 @@ def export_star(path):
     return len(all_states)
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  CROSS-SYSTEM SUMMARY  ->  profitable_summary.txt
+# ═══════════════════════════════════════════════════════════════════════════
+# Two markdown tables per system:
+#   1. every single-step profitable deviation (already tagged
+#      "[profitable: yes]" above), one row per edge.
+#   2. "complex manipulations" -- chains of 2+ moves where the outcome may
+#      dip at intermediate steps (unlike the *_graph_test.py scripts' own
+#      MULTI-STEP DEVIATION PATHS section, which requires monotone
+#      non-decrease); only start-outcome < end-outcome matters. A given
+#      start state can have SEVERAL independent such targets -- e.g. one
+#      reachable in 1 hop (already in table 1) and a genuinely different one
+#      reachable only via a distinct 2+-hop route -- so we record every
+#      "first crossing" boundary node down every branch, not just the
+#      globally nearest one. Per distinct target, only the deepest (max-hop)
+#      originating state is kept, so shallower waypoints on the same chain
+#      don't also get their own redundant row.
+#
+# IRV/STAR exclude flip_* moves from this search entirely (minimax keeps
+# them). Both proofs (irv_graph_test.py / star_graph_test.py) already show
+# flip is never profitable as the crossing move itself; on top of that,
+# flip only ever toggles the tournament axis, which votes_rank/score_rank
+# moves never look at (their availability depends solely on position), so
+# flip can never be a NECESSARY intermediate step either -- chaining through
+# it just visits cosmetically-different tournament twins of states already
+# reachable via reorder moves alone, which floods the search with duplicate
+# non-answers (empirically: 10 raw IRV records / 33 raw STAR records with
+# flip included, collapsing to the true 2 / 12 once flip is excluded).
+# Minimax has no such proof or axis-independence -- its own worked example
+# (see minimax_graph_test.py) genuinely requires a flip mid-chain -- so its
+# search keeps the full neighbour set.
+
+def md_escape(key):
+    # IRV/STAR keys contain a literal "|" (e.g. "ABC|+++"), which would
+    # otherwise be parsed as a markdown table column delimiter.
+    return key.replace('|', '\\|')
+
+
+def boundary_targets(start, adj, winner_fn, pref):
+    """Level-order BFS from `start` that only continues expanding through
+    nodes whose outcome is still <= start's (a "dip" or a wash); the first
+    time each branch reaches a node strictly better than start, that node is
+    recorded and NOT expanded further. Returns [(target, hops), ...] -- a
+    single start can yield several targets down different branches."""
+    u0 = pref[winner_fn(start)]
+    visited = {start}
+    frontier = [start]
+    hops = 0
+    found = []
+    while frontier:
+        hops += 1
+        next_frontier = []
+        for cur in frontier:
+            for ns in adj[cur]:
+                if ns in visited:
+                    continue
+                visited.add(ns)
+                if pref[winner_fn(ns)] > u0:
+                    found.append((ns, hops))
+                else:
+                    next_frontier.append(ns)
+        frontier = next_frontier
+    return found
+
+
+def find_complex_cases(all_states, winner_fn, pref, neighbours_fn):
+    """neighbours_fn(state) -> iterable of next states (labels stripped).
+    Returns [(start, target, hops), ...], sorted by descending hops."""
+    adj = {s: list(neighbours_fn(s)) for s in all_states}
+
+    records = []
+    for s in all_states:
+        if winner_fn(s) == 'A':
+            continue
+        for target, hops in boundary_targets(s, adj, winner_fn, pref):
+            if hops < 2:
+                continue   # hops == 1 is already a single-step profitable edge
+            records.append((s, target, hops))
+
+    best_by_target = {}
+    for s, t, hops in records:
+        cur = best_by_target.get(t)
+        if cur is None or hops > cur[1] or (hops == cur[1] and repr(s) < repr(cur[0])):
+            best_by_target[t] = (s, hops)
+
+    result = [(s, t, hops) for t, (s, hops) in best_by_target.items()]
+    result.sort(key=lambda r: (-r[2], repr(r[0])))
+    return result
+
+
+def export_profitable_summary(path):
+    lines = [
+        '# Weakest Link -- Profitable Deviations Summary',
+        '',
+        'One section per voting system, each with two tables:',
+        '',
+        '1. **Profitable single-step deviations** -- every edge from the',
+        '   corresponding `*_graph_edges.txt` dump tagged `[profitable: yes]`.',
+        '2. **Complex manipulations** -- chains of 2+ moves reaching a target',
+        '   not reachable in a single step, where the outcome may dip at',
+        '   intermediate steps (only start-outcome < end-outcome matters). A',
+        '   state can have more than one such target down different branches;',
+        '   for each distinct target, only the deepest (longest-chain)',
+        '   originating state is shown.',
+        '',
+        'Node notation is given both as the plain-text key (matching the',
+        '`*_graph_edges.txt` files) and as LaTeX (requires a math-rendering',
+        'markdown viewer, e.g. Obsidian, Typora, or GitHub with KaTeX).',
+        '',
+    ]
+
+    # ── MINIMAX ──────────────────────────────────────────────────────────────
+    mm_states = list(mm_all_states())
+
+    lines += ['## Minimax', '', '### Profitable single-step deviations', '',
+              '| Start | Move | End | Outcome |', '|---|---|---|---|']
+    for s in mm_states:
+        w = mm_winner(s)
+        u0 = MM_PREF[w]
+        for ns, mid, kind in mm_neighbours_minimal(s):
+            nw = mm_winner(ns)
+            if MM_PREF[nw] <= u0:
+                continue
+            start_cell = f'{md_escape(mm_state_key(s))} <br> {mm_desc_latex(s)}'
+            end_cell = f'{md_escape(mm_state_key(ns))} <br> {mm_desc_latex(ns)}'
+            lines.append(f'| {start_cell} | lie {MM_LIE[mid]} | {end_cell} | {w} → **{nw}** |')
+
+    mm_complex = find_complex_cases(mm_states, mm_winner, MM_PREF,
+                                     lambda s: (ns for ns, mid, kind in mm_neighbours_minimal(s)))
+    lines += ['', '### Complex manipulations (multi-step only)', '']
+    if mm_complex:
+        lines += ['| Start | End | Outcome | Steps |', '|---|---|---|---|']
+        for s, t, hops in mm_complex:
+            start_cell = f'{md_escape(mm_state_key(s))} <br> {mm_desc_latex(s)}'
+            end_cell = f'{md_escape(mm_state_key(t))} <br> {mm_desc_latex(t)}'
+            lines.append(f'| {start_cell} | {end_cell} | {mm_winner(s)} → **{mm_winner(t)}** | {hops} |')
+    else:
+        lines.append('None.')
+    lines.append('')
+
+    # ── IRV ──────────────────────────────────────────────────────────────────
+    irv_states = []
+    for tournament in product((+1, -1), repeat=3):
+        for votes_rank in permutations(IRV_CANDIDATES):
+            irv_states.append((votes_rank, tournament))
+
+    lines += ['## IRV', '', '### Profitable single-step deviations', '',
+              '| Start | Move | End | Outcome |', '|---|---|---|---|']
+    for s in irv_states:
+        w = irv_winner(s)
+        u0 = IRV_PREF[w]
+        for ns, lab, kind in irv_neighbours_minimal(s):
+            nw = irv_winner(ns)
+            if IRV_PREF[nw] <= u0:
+                continue
+            start_cell = f'{md_escape(irv_state_key(s))} <br> {irv_desc_latex(s)}'
+            end_cell = f'{md_escape(irv_state_key(ns))} <br> {irv_desc_latex(ns)}'
+            lines.append(f'| {start_cell} | {lab} | {end_cell} | {w} → **{nw}** |')
+
+    irv_complex = find_complex_cases(
+        irv_states, irv_winner, IRV_PREF,
+        lambda s: (ns for ns, lab, kind in irv_neighbours_minimal(s) if kind == 'reorder'))
+    lines += ['', '### Complex manipulations (multi-step only)', '']
+    if irv_complex:
+        lines += ['| Start | End | Outcome | Steps |', '|---|---|---|---|']
+        for s, t, hops in irv_complex:
+            start_cell = f'{md_escape(irv_state_key(s))} <br> {irv_desc_latex(s)}'
+            end_cell = f'{md_escape(irv_state_key(t))} <br> {irv_desc_latex(t)}'
+            lines.append(f'| {start_cell} | {end_cell} | {irv_winner(s)} → **{irv_winner(t)}** | {hops} |')
+    else:
+        lines.append('None.')
+    lines.append('')
+
+    # ── STAR ─────────────────────────────────────────────────────────────────
+    star_states = []
+    for tournament in product((+1, -1), repeat=3):
+        for score_rank in permutations(STAR_CANDIDATES):
+            star_states.append((score_rank, tournament))
+
+    # Group by (start, end) first: boost_B/starve_A can land on the same
+    # target (see star_score_rank_neighbours docstring) -- when that happens,
+    # show only the concrete numeric ballot move (boost_B/starve_B) rather
+    # than both, since starve_A's "(x+1)-x-0" is the same move in disguise.
+    star_rows = {}
+    for s in star_states:
+        w = star_winner(s)
+        u0 = STAR_PREF[w]
+        for ns, lab, kind in star_neighbours_minimal(s):
+            nw = star_winner(ns)
+            if STAR_PREF[nw] <= u0:
+                continue
+            key = (s, ns)
+            if key in star_rows and star_rows[key][0] != 'starve_A' and lab == 'starve_A':
+                continue
+            star_rows[key] = (lab, nw)
+
+    lines += ['## STAR', '', '### Profitable single-step deviations', '',
+              '| Start | Move | End | Outcome |', '|---|---|---|---|']
+    for (s, ns), (lab, nw) in star_rows.items():
+        w = star_winner(s)
+        start_cell = f'{md_escape(star_state_key(s))} <br> {star_desc_latex(s)}'
+        end_cell = f'{md_escape(star_state_key(ns))} <br> {star_desc_latex(ns)}'
+        lines.append(f'| {start_cell} | {STAR_MOVE_LABEL[lab]} | {end_cell} | {w} → **{nw}** |')
+
+    star_complex = find_complex_cases(
+        star_states, star_winner, STAR_PREF,
+        lambda s: (ns for ns, lab, kind in star_neighbours_minimal(s) if kind == 'reorder'))
+    lines += ['', '### Complex manipulations (multi-step only)', '']
+    if star_complex:
+        lines += ['| Start | End | Outcome | Steps |', '|---|---|---|---|']
+        for s, t, hops in star_complex:
+            start_cell = f'{md_escape(star_state_key(s))} <br> {star_desc_latex(s)}'
+            end_cell = f'{md_escape(star_state_key(t))} <br> {star_desc_latex(t)}'
+            lines.append(f'| {start_cell} | {end_cell} | {star_winner(s)} → **{star_winner(t)}** | {hops} |')
+    else:
+        lines.append('None.')
+    lines.append('')
+
+    with open(path, 'w', encoding='utf-8', newline='') as f:
+        f.write('\n'.join(lines).rstrip() + '\n')
+
+
 if __name__ == '__main__':
     import os
     here = os.path.dirname(os.path.abspath(__file__))
     n_mm = export_minimax(os.path.join(here, 'graph_edges.txt'))
     n_irv = export_irv(os.path.join(here, 'irv_graph_edges.txt'))
     n_star = export_star(os.path.join(here, 'star_graph_edges.txt'))
+    export_profitable_summary(os.path.join(here, 'profitable_summary.txt'))
     print(f'wrote graph_edges.txt ({n_mm} nodes)')
     print(f'wrote irv_graph_edges.txt ({n_irv} nodes)')
     print(f'wrote star_graph_edges.txt ({n_star} nodes)')
+    print('wrote profitable_summary.txt')

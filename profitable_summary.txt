@@ -1,0 +1,86 @@
+# Weakest Link -- Profitable Deviations Summary
+
+One section per voting system, each with two tables:
+
+1. **Profitable single-step deviations** -- every edge from the
+   corresponding `*_graph_edges.txt` dump tagged `[profitable: yes]`.
+2. **Complex manipulations** -- chains of 2+ moves reaching a target
+   not reachable in a single step, where the outcome may dip at
+   intermediate steps (only start-outcome < end-outcome matters). A
+   state can have more than one such target down different branches;
+   for each distinct target, only the deepest (longest-chain)
+   originating state is shown.
+
+Node notation is given both as the plain-text key (matching the
+`*_graph_edges.txt` files) and as LaTeX (requires a math-rendering
+markdown viewer, e.g. Obsidian, Typora, or GitHub with KaTeX).
+
+## Minimax
+
+### Profitable single-step deviations
+
+| Start | Move | End | Outcome |
+|---|---|---|---|
+| AC-,AB+,BC+ <br> $\langle C\to A \succ A\to B \succ B\to C \rangle$ | lie B>A | AC-,BC+,AB+ <br> $\langle C\to A \succ B\to C \succ A\to B \rangle$ | C → **B** |
+| AC+,AB-,BC- <br> $\langle A\to C \succ B\to A \succ C\to B \rangle$ | lie C>B | AC+,BC-,AB- <br> $\langle A\to C \succ C\to B \succ B\to A \rangle$ | B → **A** |
+
+### Complex manipulations (multi-step only)
+
+| Start | End | Outcome | Steps |
+|---|---|---|---|
+| BC+,AC+,AB- <br> $\langle B\to C \succ A\to C \succ B\to A \rangle$ | AC+,BC-,AB- <br> $\langle A\to C \succ C\to B \succ B\to A \rangle$ | B → **A** | 4 |
+| AB+,AC-,BC+ <br> $\langle A\to B \succ C\to A \succ B\to C \rangle$ | AC-,BC+,AB+ <br> $\langle C\to A \succ B\to C \succ A\to B \rangle$ | C → **B** | 2 |
+
+## IRV
+
+### Profitable single-step deviations
+
+| Start | Move | End | Outcome |
+|---|---|---|---|
+| BAC\|+-+ <br> $\langle B<A<C \mid A\to B, C\to A, B\to C \rangle$ | swap_A | ABC\|+-+ <br> $\langle A<B<C \mid A\to B, C\to A, B\to C \rangle$ | C → **B** |
+| BCA\|+-+ <br> $\langle B<C<A \mid A\to B, C\to A, B\to C \rangle$ | swap_BC | CBA\|+-+ <br> $\langle C<B<A \mid A\to B, C\to A, B\to C \rangle$ | C → **A** |
+| BCA\|+-- <br> $\langle B<C<A \mid A\to B, C\to A, C\to B \rangle$ | swap_BC | CBA\|+-- <br> $\langle C<B<A \mid A\to B, C\to A, C\to B \rangle$ | C → **A** |
+| CBA\|-++ <br> $\langle C<B<A \mid B\to A, A\to C, B\to C \rangle$ | swap_BC | BCA\|-++ <br> $\langle B<C<A \mid B\to A, A\to C, B\to C \rangle$ | B → **A** |
+| CBA\|-+- <br> $\langle C<B<A \mid B\to A, A\to C, C\to B \rangle$ | swap_BC | BCA\|-+- <br> $\langle B<C<A \mid B\to A, A\to C, C\to B \rangle$ | B → **A** |
+| BAC\|--+ <br> $\langle B<A<C \mid B\to A, C\to A, B\to C \rangle$ | swap_A | ABC\|--+ <br> $\langle A<B<C \mid B\to A, C\to A, B\to C \rangle$ | C → **B** |
+| BCA\|--+ <br> $\langle B<C<A \mid B\to A, C\to A, B\to C \rangle$ | swap_BC | CBA\|--+ <br> $\langle C<B<A \mid B\to A, C\to A, B\to C \rangle$ | C → **B** |
+| BCA\|--- <br> $\langle B<C<A \mid B\to A, C\to A, C\to B \rangle$ | swap_BC | CBA\|--- <br> $\langle C<B<A \mid B\to A, C\to A, C\to B \rangle$ | C → **B** |
+
+### Complex manipulations (multi-step only)
+
+| Start | End | Outcome | Steps |
+|---|---|---|---|
+| BCA\|--+ <br> $\langle B<C<A \mid B\to A, C\to A, B\to C \rangle$ | ABC\|--+ <br> $\langle A<B<C \mid B\to A, C\to A, B\to C \rangle$ | C → **B** | 2 |
+| BCA\|+-+ <br> $\langle B<C<A \mid A\to B, C\to A, B\to C \rangle$ | ABC\|+-+ <br> $\langle A<B<C \mid A\to B, C\to A, B\to C \rangle$ | C → **B** | 2 |
+
+## STAR
+
+### Profitable single-step deviations
+
+| Start | Move | End | Outcome |
+|---|---|---|---|
+| ABC\|+++ <br> $\langle A<B<C \mid A\to B, A\to C, B\to C \rangle$ | 5-1-0 (starve B) | BAC\|+++ <br> $\langle B<A<C \mid A\to B, A\to C, B\to C \rangle$ | B → **A** |
+| ABC\|++- <br> $\langle A<B<C \mid A\to B, A\to C, C\to B \rangle$ | 5-1-0 (starve B) | BAC\|++- <br> $\langle B<A<C \mid A\to B, A\to C, C\to B \rangle$ | C → **A** |
+| BAC\|+-+ <br> $\langle B<A<C \mid A\to B, C\to A, B\to C \rangle$ | 5-4-0 (boost B) | ABC\|+-+ <br> $\langle A<B<C \mid A\to B, C\to A, B\to C \rangle$ | C → **B** |
+| BCA\|+-+ <br> $\langle B<C<A \mid A\to B, C\to A, B\to C \rangle$ | 5-4-0 (boost B) | CBA\|+-+ <br> $\langle C<B<A \mid A\to B, C\to A, B\to C \rangle$ | C → **A** |
+| BCA\|+-- <br> $\langle B<C<A \mid A\to B, C\to A, C\to B \rangle$ | 5-4-0 (boost B) | CBA\|+-- <br> $\langle C<B<A \mid A\to B, C\to A, C\to B \rangle$ | C → **A** |
+| ABC\|-++ <br> $\langle A<B<C \mid B\to A, A\to C, B\to C \rangle$ | 5-1-0 (starve B) | BAC\|-++ <br> $\langle B<A<C \mid B\to A, A\to C, B\to C \rangle$ | B → **A** |
+| CBA\|-++ <br> $\langle C<B<A \mid B\to A, A\to C, B\to C \rangle$ | 5-1-0 (starve B) | BCA\|-++ <br> $\langle B<C<A \mid B\to A, A\to C, B\to C \rangle$ | B → **A** |
+| ABC\|-+- <br> $\langle A<B<C \mid B\to A, A\to C, C\to B \rangle$ | 5-1-0 (starve B) | BAC\|-+- <br> $\langle B<A<C \mid B\to A, A\to C, C\to B \rangle$ | C → **A** |
+| CBA\|-+- <br> $\langle C<B<A \mid B\to A, A\to C, C\to B \rangle$ | 5-1-0 (starve B) | BCA\|-+- <br> $\langle B<C<A \mid B\to A, A\to C, C\to B \rangle$ | B → **A** |
+| BAC\|--+ <br> $\langle B<A<C \mid B\to A, C\to A, B\to C \rangle$ | 5-4-0 (boost B) | ABC\|--+ <br> $\langle A<B<C \mid B\to A, C\to A, B\to C \rangle$ | C → **B** |
+| BCA\|--+ <br> $\langle B<C<A \mid B\to A, C\to A, B\to C \rangle$ | 5-4-0 (boost B) | CBA\|--+ <br> $\langle C<B<A \mid B\to A, C\to A, B\to C \rangle$ | C → **B** |
+| BCA\|--- <br> $\langle B<C<A \mid B\to A, C\to A, C\to B \rangle$ | 5-4-0 (boost B) | CBA\|--- <br> $\langle C<B<A \mid B\to A, C\to A, C\to B \rangle$ | C → **B** |
+
+### Complex manipulations (multi-step only)
+
+| Start | End | Outcome | Steps |
+|---|---|---|---|
+| CBA\|-+- <br> $\langle C<B<A \mid B\to A, A\to C, C\to B \rangle$ | BAC\|-+- <br> $\langle B<A<C \mid B\to A, A\to C, C\to B \rangle$ | B → **A** | 4 |
+| CBA\|-++ <br> $\langle C<B<A \mid B\to A, A\to C, B\to C \rangle$ | BAC\|-++ <br> $\langle B<A<C \mid B\to A, A\to C, B\to C \rangle$ | B → **A** | 4 |
+| ACB\|++- <br> $\langle A<C<B \mid A\to B, A\to C, C\to B \rangle$ | BAC\|++- <br> $\langle B<A<C \mid A\to B, A\to C, C\to B \rangle$ | C → **A** | 2 |
+| ACB\|+++ <br> $\langle A<C<B \mid A\to B, A\to C, B\to C \rangle$ | BAC\|+++ <br> $\langle B<A<C \mid A\to B, A\to C, B\to C \rangle$ | B → **A** | 2 |
+| BCA\|--+ <br> $\langle B<C<A \mid B\to A, C\to A, B\to C \rangle$ | ABC\|--+ <br> $\langle A<B<C \mid B\to A, C\to A, B\to C \rangle$ | C → **B** | 2 |
+| BCA\|+-+ <br> $\langle B<C<A \mid A\to B, C\to A, B\to C \rangle$ | ABC\|+-+ <br> $\langle A<B<C \mid A\to B, C\to A, B\to C \rangle$ | C → **B** | 2 |
+| CAB\|-+- <br> $\langle C<A<B \mid B\to A, A\to C, C\to B \rangle$ | BCA\|-+- <br> $\langle B<C<A \mid B\to A, A\to C, C\to B \rangle$ | B → **A** | 2 |
+| CAB\|-++ <br> $\langle C<A<B \mid B\to A, A\to C, B\to C \rangle$ | BCA\|-++ <br> $\langle B<C<A \mid B\to A, A\to C, B\to C \rangle$ | B → **A** | 2 |

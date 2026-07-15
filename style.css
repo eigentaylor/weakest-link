@@ -471,10 +471,35 @@ body.graph-page .moves-panel {
   line-height: 1.5;
 }
 
+#tooltip .tt-dev-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
 #tooltip .tt-dev-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+  margin-left: 1.1rem;
+}
+
+#tooltip .tt-dev-item-top {
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
+}
+
+#tooltip .tt-dev-goto {
+  font-family: 'Fira Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.term-changed {
+  background: rgba(251, 191, 36, 0.22);
+  border-radius: 3px;
+  padding: 0 3px;
 }
 
 #tooltip .tt-kind {

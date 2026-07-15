@@ -66,6 +66,38 @@ function formatState(state, { bold = true } = {}) {
   return `${NOTATION.open}${rendered.join(NOTATION.sep)}${NOTATION.close}`;
 }
 
+// Like formatState, but for rendering a deviation's *destination* state next
+// to its source: wraps whichever term moved position or flipped direction
+// relative to `fromState` in a `.term-changed` span, so the one thing the
+// move actually did stands out from the two terms that stayed put.
+function formatStateDiff(state, fromState, { bold = true } = {}) {
+  const w = winner(state);
+  const cycle = isCycle(state);
+  const fromByMid = new Map(fromState.map(([mid, d], idx) => [mid, { d, idx }]));
+
+  const terms = [...state].reverse().map(([mid, d], revIdx) => {
+    const [a, b] = PAIRS[mid];
+    const origIdx = state.length - 1 - revIdx;
+    const prev = fromByMid.get(mid);
+    const changed = !prev || prev.d !== d || prev.idx !== origIdx;
+    return d === +1 ? { winner: a, loser: b, changed } : { winner: b, loser: a, changed };
+  });
+
+  const renderLetter = (letter, highlight) => {
+    if (!highlight || !bold) return letter;
+    return `<b class="cand-${letter.toLowerCase()}">${letter}</b>`;
+  };
+
+  const rendered = terms.map((t, i) => {
+    const highlightWinnerSide = !cycle && t.winner === w;
+    const highlightLoserSide = cycle && i === 0 && t.loser === w;
+    const arrow = `${renderLetter(t.winner, highlightWinnerSide)}${NOTATION.arrow}${renderLetter(t.loser, highlightLoserSide)}`;
+    return t.changed ? `<span class="term-changed">${arrow}</span>` : arrow;
+  });
+
+  return `${NOTATION.open}${rendered.join(NOTATION.sep)}${NOTATION.close}`;
+}
+
 function stateKey(state) {
   return state.map(([m, d]) => `${m}${d > 0 ? '+' : '-'}`).join(',');
 }
@@ -347,7 +379,7 @@ const SINCERE_STATE = [['AB', +1], ['AC', +1], ['BC', +1]];
 
 export {
   MATCHUPS, PAIRS, SINCERE, PREF,
-  winner, isCycle, formatState, stateKey,
+  winner, isCycle, formatState, formatStateDiff, stateKey,
   neighbours, allStates, stateData, stateMap,
   profitableStates,
   encodeState, decodeState, getStateData,

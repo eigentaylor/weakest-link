@@ -114,6 +114,39 @@ function formatTournament(state) {
   return '⟨' + terms.join(' ∣ ') + '⟩';
 }
 
+// Diff variants — like formatScoreRank/formatTournament, but for rendering a
+// deviation's *destination* state next to its source: whichever slot moved
+// (score-rank swap) or flipped (tournament) relative to `fromState` gets
+// wrapped in a `.term-changed` span, so the one thing the move actually did
+// stands out from what stayed put.
+function formatScoreRankDiff(state, fromState) {
+  const [scoreRank] = state;
+  const [fromScoreRank] = fromState;
+  const w = winner(state);
+  const cut = scoreRank[0];
+  const terms = scoreRank.map((c, i) => {
+    let label = c === cut ? `${c}✗` : c;
+    if (c === w) label = `<b class="cand-${c.toLowerCase()}">${label}</b>`;
+    return fromScoreRank[i] !== c ? `<span class="term-changed">${label}</span>` : label;
+  });
+  return '(' + terms.join('≺') + ')';
+}
+
+function formatTournamentDiff(state, fromState) {
+  const [, tournament] = state;
+  const [, fromTournament] = fromState;
+  const dm = tournamentMap(tournament);
+  const w = winner(state);
+  const terms = MATCHUPS.map((mid, i) => {
+    const [a, b] = PAIRS[mid];
+    let [winL, loseL] = dm[mid] === +1 ? [a, b] : [b, a];
+    if (winL === w) winL = `<b class="cand-${winL.toLowerCase()}">${winL}</b>`;
+    const arrow = `${winL}→${loseL}`;
+    return fromTournament[i] !== tournament[i] ? `<span class="term-changed">${arrow}</span>` : arrow;
+  });
+  return '⟨' + terms.join(' ∣ ') + '⟩';
+}
+
 function stateKey(state) {
   const [scoreRank, tournament] = state;
   return scoreRank.join('') + '|' + tournament.map(d => (d > 0 ? '+' : '-')).join('');
@@ -351,6 +384,6 @@ for (const [key, data] of stateData) {
 export {
   MATCHUPS, PAIRS, SINCERE, PREF,
   winner, condorcetWinner, isCenterSqueeze, stateTag, relevantMatchup, stateKey,
-  formatScoreRank, formatTournament,
+  formatScoreRank, formatTournament, formatScoreRankDiff, formatTournamentDiff,
   neighboursMinimal, allStates, stateData, stateMap,
 };

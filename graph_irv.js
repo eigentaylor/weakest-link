@@ -3,6 +3,7 @@
 import {
   winner, stateKey,
   allStates, stateData,
+  formatVotesRankDiff, formatTournamentDiff,
 } from './irv.js';
 import { createMoveIsolation } from './graph-moves.js';
 
@@ -396,7 +397,7 @@ function showTooltip(d, mode = 'descendants') {
   for (const nb of visibleNeighbours(d.data)) {
     const bucket = byOutcome[nb.winner];
     const key = `${nb.label}|${nb.kind}`;
-    if (!bucket[key]) bucket[key] = { label: nb.label, kind: nb.kind, count: 0 };
+    if (!bucket[key]) bucket[key] = { label: nb.label, kind: nb.kind, count: 0, newState: nb.newState };
     bucket[key].count++;
   }
 
@@ -405,9 +406,13 @@ function showTooltip(d, mode = 'descendants') {
     if (!entries.length) return '';
     const items = entries.map(e => {
       const countStr = e.count > 1 ? ` ×${e.count}` : '';
-      return `<span class="tt-dev-item">${e.label}${countStr} <span class="tt-kind kind-${e.kind}">${e.kind}</span></span>`;
-    }).join(' · ');
-    return `<div><span style="color:${COLOR[c]};font-weight:700">→${c}</span> <span style="color:var(--muted)">${items}</span></div>`;
+      const goto = `${formatVotesRankDiff(e.newState, d.state)} ${formatTournamentDiff(e.newState, d.state)}`;
+      return `<div class="tt-dev-item">
+        <span class="tt-dev-item-top">${e.label}${countStr} <span class="tt-kind kind-${e.kind}">${e.kind}</span></span>
+        <span class="tt-dev-goto">⇒ ${goto}</span>
+      </div>`;
+    }).join('');
+    return `<div class="tt-dev-group"><span style="color:${COLOR[c]};font-weight:700">→${c}</span>${items}</div>`;
   }).join('');
 
   let multiStepHtml = '';
@@ -417,7 +422,11 @@ function showTooltip(d, mode = 'descendants') {
       .sort((a, b) => a.hops - b.hops)
       .map(t => {
         const pathStr = t.path.map(p => p.label).join(' → ');
-        return `<div><span style="color:${COLOR[t.winner]};font-weight:700">⇢${t.winner}</span> <span style="color:var(--muted)">(${t.hops} hop${t.hops > 1 ? 's' : ''}): ${pathStr}</span></div>`;
+        const goto = `${formatVotesRankDiff(t.newState, d.state)} ${formatTournamentDiff(t.newState, d.state)}`;
+        return `<div class="tt-dev-item">
+          <span class="tt-dev-item-top"><span style="color:${COLOR[t.winner]};font-weight:700">⇢${t.winner}</span> <span style="color:var(--muted)">(${t.hops} hop${t.hops > 1 ? 's' : ''}): ${pathStr}</span></span>
+          <span class="tt-dev-goto">⇒ ${goto}</span>
+        </div>`;
       }).join('');
     multiStepHtml = `<div class="tt-devs">${items}</div>`;
   }

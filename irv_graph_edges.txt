@@ -8,8 +8,9 @@ are single-step deviations available to a coalition preferring A>B>C:
 swap_A (swap A with whoever is directly below it, if A is not already
 last) or swap_BC (swap B and C, whenever they are adjacent -- i.e. A is
 not between them), or flip_<matchup> (reverse a currently-sincere
-matchup), labeled with the move, the move kind (reorder vs flip), and
-the resulting outcome. Node tags: CW = a Condorcet winner exists and
+matchup), labeled with the move, the move kind (reorder vs flip), the
+resulting outcome, and whether the deviation is profitable for a
+coalition preferring A>B>C. Node tags: CW = a Condorcet winner exists and
 wins; cycle = no Condorcet winner; SQZ = a Condorcet winner exists but
 is eliminated (center squeeze). A trailing bracket on a NODE line tags
 a real-world election that maps onto that exact state. Reference model
@@ -96,13 +97,13 @@ NODE ACB|+-+  [A<C<B | A>B, C>A, B>C]  outcome: B (cycle)
   -> ACB|+--  (flip_BC, flip)  outcome: C
 
 NODE BAC|+-+  [B<A<C | A>B, C>A, B>C]  outcome: C (cycle)
-  -> ABC|+-+  (swap_A, reorder)  outcome: B
+  -> ABC|+-+  (swap_A, reorder)  outcome: B  [profitable: yes]
   -> BAC|--+  (flip_AB, flip)  outcome: C
   -> BAC|+--  (flip_BC, flip)  outcome: C
 
 NODE BCA|+-+  [B<C<A | A>B, C>A, B>C]  outcome: C (cycle)
   -> BAC|+-+  (swap_A, reorder)  outcome: C
-  -> CBA|+-+  (swap_BC, reorder)  outcome: A
+  -> CBA|+-+  (swap_BC, reorder)  outcome: A  [profitable: yes]
   -> BCA|--+  (flip_AB, flip)  outcome: C
   -> BCA|+--  (flip_BC, flip)  outcome: C
 
@@ -131,7 +132,7 @@ NODE BAC|+--  [B<A<C | A>B, C>A, C>B]  outcome: C (CW)
 
 NODE BCA|+--  [B<C<A | A>B, C>A, C>B]  outcome: C (CW)
   -> BAC|+--  (swap_A, reorder)  outcome: C
-  -> CBA|+--  (swap_BC, reorder)  outcome: A
+  -> CBA|+--  (swap_BC, reorder)  outcome: A  [profitable: yes]
   -> BCA|---  (flip_AB, flip)  outcome: C
 
 NODE CAB|+--  [C<A<B | A>B, C>A, C>B]  outcome: A (SQZ)  [Burlington 2009 (A=Kiss, B=Wright, C=Montroll)]
@@ -171,7 +172,7 @@ NODE CAB|-++  [C<A<B | B>A, A>C, B>C]  outcome: B (CW)
 
 NODE CBA|-++  [C<B<A | B>A, A>C, B>C]  outcome: B (CW)
   -> CAB|-++  (swap_A, reorder)  outcome: B
-  -> BCA|-++  (swap_BC, reorder)  outcome: A
+  -> BCA|-++  (swap_BC, reorder)  outcome: A  [profitable: yes]
   -> CBA|--+  (flip_AC, flip)  outcome: B
   -> CBA|-+-  (flip_BC, flip)  outcome: B
 
@@ -198,7 +199,7 @@ NODE CAB|-+-  [C<A<B | B>A, A>C, C>B]  outcome: B (cycle)
 
 NODE CBA|-+-  [C<B<A | B>A, A>C, C>B]  outcome: B (cycle)
   -> CAB|-+-  (swap_A, reorder)  outcome: B
-  -> BCA|-+-  (swap_BC, reorder)  outcome: A
+  -> BCA|-+-  (swap_BC, reorder)  outcome: A  [profitable: yes]
   -> CBA|---  (flip_AC, flip)  outcome: B
 
 NODE ABC|--+  [A<B<C | B>A, C>A, B>C]  outcome: B (CW)
@@ -210,12 +211,12 @@ NODE ACB|--+  [A<C<B | B>A, C>A, B>C]  outcome: B (CW)
   -> ACB|---  (flip_BC, flip)  outcome: C
 
 NODE BAC|--+  [B<A<C | B>A, C>A, B>C]  outcome: C (SQZ)  [Alaska 2022 (A=Palin, B=Begich, C=Peltola)]
-  -> ABC|--+  (swap_A, reorder)  outcome: B
+  -> ABC|--+  (swap_A, reorder)  outcome: B  [profitable: yes]
   -> BAC|---  (flip_BC, flip)  outcome: C
 
 NODE BCA|--+  [B<C<A | B>A, C>A, B>C]  outcome: C (SQZ)  [Burlington 2009 (A=Wright, B=Montroll, C=Kiss)]
   -> BAC|--+  (swap_A, reorder)  outcome: C
-  -> CBA|--+  (swap_BC, reorder)  outcome: B
+  -> CBA|--+  (swap_BC, reorder)  outcome: B  [profitable: yes]
   -> BCA|---  (flip_BC, flip)  outcome: C
 
 NODE CAB|--+  [C<A<B | B>A, C>A, B>C]  outcome: B (CW)
@@ -238,7 +239,7 @@ NODE BAC|---  [B<A<C | B>A, C>A, C>B]  outcome: C (CW)
 
 NODE BCA|---  [B<C<A | B>A, C>A, C>B]  outcome: C (CW)
   -> BAC|---  (swap_A, reorder)  outcome: C
-  -> CBA|---  (swap_BC, reorder)  outcome: B
+  -> CBA|---  (swap_BC, reorder)  outcome: B  [profitable: yes]
 
 NODE CAB|---  [C<A<B | B>A, C>A, C>B]  outcome: B (SQZ)  [Alaska 2022 (A=Palin, B=Peltola, C=Begich)]
   -> ACB|---  (swap_A, reorder)  outcome: C

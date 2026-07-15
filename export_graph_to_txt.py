@@ -152,6 +152,7 @@ IRV_MATCHUPS = ['AB', 'AC', 'BC']
 IRV_PAIRS = {'AB': ('A', 'B'), 'AC': ('A', 'C'), 'BC': ('B', 'C')}
 IRV_SINCERE = {'AB': +1, 'AC': +1, 'BC': +1}
 IRV_MID_OF = {frozenset(IRV_PAIRS[m]): m for m in IRV_MATCHUPS}
+IRV_PREF = {'A': 2, 'B': 1, 'C': 0}   # matches irv.js's PREF dict
 
 # Real-world 3-candidate IRV elections that map onto states here. A node is
 # identified by GENERIC letters, but which real candidate is "A" vs "B" vs
@@ -276,8 +277,9 @@ def export_irv(path):
         'swap_A (swap A with whoever is directly below it, if A is not already',
         'last) or swap_BC (swap B and C, whenever they are adjacent -- i.e. A is',
         'not between them), or flip_<matchup> (reverse a currently-sincere',
-        'matchup), labeled with the move, the move kind (reorder vs flip), and',
-        'the resulting outcome. Node tags: CW = a Condorcet winner exists and',
+        'matchup), labeled with the move, the move kind (reorder vs flip), the',
+        'resulting outcome, and whether the deviation is profitable for a',
+        'coalition preferring A>B>C. Node tags: CW = a Condorcet winner exists and',
         'wins; cycle = no Condorcet winner; SQZ = a Condorcet winner exists but',
         'is eliminated (center squeeze). A trailing bracket on a NODE line tags',
         'a real-world election that maps onto that exact state. Reference model',
@@ -287,6 +289,7 @@ def export_irv(path):
 
     for s in all_states:
         w = irv_winner(s)
+        u0 = IRV_PREF[w]
         tag = irv_state_tag(s)
         key = irv_state_key(s)
         real = IRV_REAL_EXAMPLES.get(key)
@@ -295,7 +298,8 @@ def export_irv(path):
         for ns, lab, kind in irv_neighbours_minimal(s):
             nw = irv_winner(ns)
             nk = irv_state_key(ns)
-            lines.append(f'  -> {nk}  ({lab}, {kind})  outcome: {nw}')
+            profitable = '  [profitable: yes]' if IRV_PREF[nw] > u0 else ''
+            lines.append(f'  -> {nk}  ({lab}, {kind})  outcome: {nw}{profitable}')
         lines.append('')
 
     # newline='' keeps line endings as pure LF ('\n' in the joined lines
@@ -323,6 +327,7 @@ STAR_MATCHUPS = ['AB', 'AC', 'BC']
 STAR_PAIRS = {'AB': ('A', 'B'), 'AC': ('A', 'C'), 'BC': ('B', 'C')}
 STAR_SINCERE = {'AB': +1, 'AC': +1, 'BC': +1}
 STAR_MID_OF = {frozenset(STAR_PAIRS[m]): m for m in STAR_MATCHUPS}
+STAR_PREF = {'A': 2, 'B': 1, 'C': 0}   # matches star.js's PREF dict
 
 
 def star_winner(state):
@@ -434,7 +439,8 @@ def export_star(path):
         'the tournament fixed: boost_B (raise B to 5-4-0), starve_B (bury B to',
         '5-1-0), starve_A ((x+1)-x-0), or flip_<matchup> (reverse a currently-',
         'sincere matchup) -- labeled with the move, the move kind (reorder vs',
-        'flip), and the resulting outcome. Node tags: CW = a Condorcet winner',
+        'flip), the resulting outcome, and whether the deviation is profitable',
+        'for a coalition preferring A>B>C. Node tags: CW = a Condorcet winner',
         'exists and reaches the runoff; cycle = no Condorcet winner; SQZ = a',
         'Condorcet winner exists but misses the runoff (center squeeze). No',
         'real-world STAR elections are tagged (unlike irv_graph_edges.txt) --',
@@ -446,13 +452,15 @@ def export_star(path):
 
     for s in all_states:
         w = star_winner(s)
+        u0 = STAR_PREF[w]
         tag = star_state_tag(s)
         key = star_state_key(s)
         lines.append(f'NODE {key}  [{star_desc_ascii(s)}]  outcome: {w} ({tag})')
         for ns, lab, kind in star_neighbours_minimal(s):
             nw = star_winner(ns)
             nk = star_state_key(ns)
-            lines.append(f'  -> {nk}  ({lab}, {kind})  outcome: {nw}')
+            profitable = '  [profitable: yes]' if STAR_PREF[nw] > u0 else ''
+            lines.append(f'  -> {nk}  ({lab}, {kind})  outcome: {nw}{profitable}')
         lines.append('')
 
     with open(path, 'w', encoding='utf-8', newline='') as f:

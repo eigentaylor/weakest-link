@@ -9,7 +9,8 @@ Edges are the most generous single-step ballot deviations that hold
 the tournament fixed: boost_B (raise B to 5-4-0), starve_B (bury B to
 5-1-0), starve_A ((x+1)-x-0), or flip_<matchup> (reverse a currently-
 sincere matchup) -- labeled with the move, the move kind (reorder vs
-flip), and the resulting outcome. Node tags: CW = a Condorcet winner
+flip), the resulting outcome, and whether the deviation is profitable
+for a coalition preferring A>B>C. Node tags: CW = a Condorcet winner
 exists and reaches the runoff; cycle = no Condorcet winner; SQZ = a
 Condorcet winner exists but misses the runoff (center squeeze). No
 real-world STAR elections are tagged (unlike irv_graph_edges.txt) --
@@ -19,7 +20,7 @@ star_graph_test.py. Rendered graph: star.html.
 
 NODE ABC|+++  [A<B<C | A>B, A>C, B>C]  outcome: B (SQZ)
   -> ACB|+++  (boost_B, reorder)  outcome: B
-  -> BAC|+++  (starve_B, reorder)  outcome: A
+  -> BAC|+++  (starve_B, reorder)  outcome: A  [profitable: yes]
   -> ABC|-++  (flip_AB, flip)  outcome: B
   -> ABC|+-+  (flip_AC, flip)  outcome: B
   -> ABC|++-  (flip_BC, flip)  outcome: C
@@ -61,7 +62,7 @@ NODE CBA|+++  [C<B<A | A>B, A>C, B>C]  outcome: A (CW)
 
 NODE ABC|++-  [A<B<C | A>B, A>C, C>B]  outcome: C (SQZ)
   -> ACB|++-  (boost_B, reorder)  outcome: C
-  -> BAC|++-  (starve_B, reorder)  outcome: A
+  -> BAC|++-  (starve_B, reorder)  outcome: A  [profitable: yes]
   -> ABC|-+-  (flip_AB, flip)  outcome: C
   -> ABC|+--  (flip_AC, flip)  outcome: C
 
@@ -107,13 +108,13 @@ NODE ACB|+-+  [A<C<B | A>B, C>A, B>C]  outcome: B (cycle)
   -> ACB|+--  (flip_BC, flip)  outcome: C
 
 NODE BAC|+-+  [B<A<C | A>B, C>A, B>C]  outcome: C (cycle)
-  -> ABC|+-+  (boost_B, reorder)  outcome: B
-  -> ABC|+-+  (starve_A, reorder)  outcome: B
+  -> ABC|+-+  (boost_B, reorder)  outcome: B  [profitable: yes]
+  -> ABC|+-+  (starve_A, reorder)  outcome: B  [profitable: yes]
   -> BAC|--+  (flip_AB, flip)  outcome: C
   -> BAC|+--  (flip_BC, flip)  outcome: C
 
 NODE BCA|+-+  [B<C<A | A>B, C>A, B>C]  outcome: C (cycle)
-  -> CBA|+-+  (boost_B, reorder)  outcome: A
+  -> CBA|+-+  (boost_B, reorder)  outcome: A  [profitable: yes]
   -> BAC|+-+  (starve_A, reorder)  outcome: C
   -> BCA|--+  (flip_AB, flip)  outcome: C
   -> BCA|+--  (flip_BC, flip)  outcome: C
@@ -146,7 +147,7 @@ NODE BAC|+--  [B<A<C | A>B, C>A, C>B]  outcome: C (CW)
   -> BAC|---  (flip_AB, flip)  outcome: C
 
 NODE BCA|+--  [B<C<A | A>B, C>A, C>B]  outcome: C (CW)
-  -> CBA|+--  (boost_B, reorder)  outcome: A
+  -> CBA|+--  (boost_B, reorder)  outcome: A  [profitable: yes]
   -> BAC|+--  (starve_A, reorder)  outcome: C
   -> BCA|---  (flip_AB, flip)  outcome: C
 
@@ -163,7 +164,7 @@ NODE CBA|+--  [C<B<A | A>B, C>A, C>B]  outcome: A (SQZ)
 
 NODE ABC|-++  [A<B<C | B>A, A>C, B>C]  outcome: B (CW)
   -> ACB|-++  (boost_B, reorder)  outcome: B
-  -> BAC|-++  (starve_B, reorder)  outcome: A
+  -> BAC|-++  (starve_B, reorder)  outcome: A  [profitable: yes]
   -> ABC|--+  (flip_AC, flip)  outcome: B
   -> ABC|-+-  (flip_BC, flip)  outcome: C
 
@@ -192,14 +193,14 @@ NODE CAB|-++  [C<A<B | B>A, A>C, B>C]  outcome: B (CW)
 
 NODE CBA|-++  [C<B<A | B>A, A>C, B>C]  outcome: B (CW)
   -> CAB|-++  (boost_B, reorder)  outcome: B
-  -> BCA|-++  (starve_B, reorder)  outcome: A
+  -> BCA|-++  (starve_B, reorder)  outcome: A  [profitable: yes]
   -> CAB|-++  (starve_A, reorder)  outcome: B
   -> CBA|--+  (flip_AC, flip)  outcome: B
   -> CBA|-+-  (flip_BC, flip)  outcome: B
 
 NODE ABC|-+-  [A<B<C | B>A, A>C, C>B]  outcome: C (cycle)
   -> ACB|-+-  (boost_B, reorder)  outcome: C
-  -> BAC|-+-  (starve_B, reorder)  outcome: A
+  -> BAC|-+-  (starve_B, reorder)  outcome: A  [profitable: yes]
   -> ABC|---  (flip_AC, flip)  outcome: C
 
 NODE ACB|-+-  [A<C<B | B>A, A>C, C>B]  outcome: C (cycle)
@@ -223,7 +224,7 @@ NODE CAB|-+-  [C<A<B | B>A, A>C, C>B]  outcome: B (cycle)
 
 NODE CBA|-+-  [C<B<A | B>A, A>C, C>B]  outcome: B (cycle)
   -> CAB|-+-  (boost_B, reorder)  outcome: B
-  -> BCA|-+-  (starve_B, reorder)  outcome: A
+  -> BCA|-+-  (starve_B, reorder)  outcome: A  [profitable: yes]
   -> CAB|-+-  (starve_A, reorder)  outcome: B
   -> CBA|---  (flip_AC, flip)  outcome: B
 
@@ -237,12 +238,12 @@ NODE ACB|--+  [A<C<B | B>A, C>A, B>C]  outcome: B (CW)
   -> ACB|---  (flip_BC, flip)  outcome: C
 
 NODE BAC|--+  [B<A<C | B>A, C>A, B>C]  outcome: C (SQZ)
-  -> ABC|--+  (boost_B, reorder)  outcome: B
-  -> ABC|--+  (starve_A, reorder)  outcome: B
+  -> ABC|--+  (boost_B, reorder)  outcome: B  [profitable: yes]
+  -> ABC|--+  (starve_A, reorder)  outcome: B  [profitable: yes]
   -> BAC|---  (flip_BC, flip)  outcome: C
 
 NODE BCA|--+  [B<C<A | B>A, C>A, B>C]  outcome: C (SQZ)
-  -> CBA|--+  (boost_B, reorder)  outcome: B
+  -> CBA|--+  (boost_B, reorder)  outcome: B  [profitable: yes]
   -> BAC|--+  (starve_A, reorder)  outcome: C
   -> BCA|---  (flip_BC, flip)  outcome: C
 
@@ -269,7 +270,7 @@ NODE BAC|---  [B<A<C | B>A, C>A, C>B]  outcome: C (CW)
   -> ABC|---  (starve_A, reorder)  outcome: C
 
 NODE BCA|---  [B<C<A | B>A, C>A, C>B]  outcome: C (CW)
-  -> CBA|---  (boost_B, reorder)  outcome: B
+  -> CBA|---  (boost_B, reorder)  outcome: B  [profitable: yes]
   -> BAC|---  (starve_A, reorder)  outcome: C
 
 NODE CAB|---  [C<A<B | B>A, C>A, C>B]  outcome: B (SQZ)

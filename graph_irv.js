@@ -14,6 +14,7 @@ const PROFIT_COLOR = { A: '#34d399', B: '#fde68a' };
 let showAllEdges = true;    // toggle: show all deviation edges (default on)
 let showMinimalEdges = true; // toggle: single-step edges only
 let showTournamentDeviations = false; // toggle: include flip_* moves (default OFF)
+let hideCycles = false; // toggle: hide states with no Condorcet winner (default OFF)
 let hoveredNode = null;
 let ctrlDown = false, shiftDown = false; // hover-direction modifiers
 const moveIso = createMoveIsolation({
@@ -34,7 +35,7 @@ let sim;
 const tooltip = document.getElementById('tooltip');
 
 function getVisible() {
-  return allStates;
+  return hideCycles ? allStates.filter(s => stateData.get(stateKey(s)).tag !== '[cyc]') : allStates;
 }
 
 // A node's precomputed stateData carries both a Core (swap_* moves only)
@@ -500,6 +501,14 @@ document.getElementById('toggle-minimal-btn').addEventListener('click', function
 document.getElementById('toggle-tournament-btn').addEventListener('click', function() {
   showTournamentDeviations = !showTournamentDeviations;
   this.classList.toggle('active', showTournamentDeviations);
+  hoveredNode = null;
+  render();
+});
+
+document.getElementById('toggle-cycles-btn').addEventListener('click', function() {
+  hideCycles = !hideCycles;
+  this.textContent = hideCycles ? 'Show cycle states' : 'Hide cycle states';
+  this.classList.toggle('active', hideCycles);
   hoveredNode = null;
   render();
 });
